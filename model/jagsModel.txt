@@ -1,0 +1,81 @@
+
+model {
+  # Priors
+  alpha.lambda ~ dnorm(0,0.01)
+  alpha.gamma ~ dnorm(0,0.01)
+  alpha.phi ~ dnorm(0,0.01)
+  alpha.p ~ dnorm(0,0.01)
+
+  ### Covariates #########
+  beta.time ~ dnorm(0,0.01)
+  beta.temp ~ dnorm(0,0.01)
+  ### Sky ###
+  beta.sky[1] <- 0
+  beta.sky[2] ~ dnorm(0,0.01)
+  beta.sky[3] ~ dnorm(0,0.01)
+  beta.sky[4] ~ dnorm(0,0.01)
+  beta.sky[5] ~ dnorm(0,0.01)
+  beta.sky[6] ~ dnorm(0,0.01)
+  beta.sky[7] ~ dnorm(0,0.01)
+  ### Wind ###
+  beta.wind[1] <- 0
+  beta.wind[2] ~ dnorm(0,0.01)
+  beta.wind[3] ~ dnorm(0,0.01)
+  beta.wind[4] ~ dnorm(0,0.01)
+  beta.wind[5] ~ dnorm(0,0.01)
+  beta.wind[6] ~ dnorm(0,0.01)
+  beta.wind[7] ~ dnorm(0,0.01)
+
+  # Likelihood
+
+  for(i in 1:nsites){
+
+    # State process: initial condition
+    N[i,1] ~ dpois(lambda[i,1])
+
+    for(t in 1:nyears){
+
+    log(lambda[i,t]) <- alpha.lambda
+    log(gamma[i,t])  <- alpha.gamma 
+    logit(phi[i,t])  <- alpha.phi   
+
+    }
+
+    # State process: transition model
+    for(t in 1:(nyears-1)){
+      S[i,t+1] ~ dbin(phi[i,t], N[i,t])  #equivalent to rbinom(1, N, phi) in r
+      R[i, t+1] ~ dpois(gamma[i,t])      # constant recruitment
+      N[i,t+1] <- S[i,t+1] + R[i,t+1]
+    }
+
+    # Observation process
+    for(t in 1:nyears){
+
+        logit(p[i,t]) <- alpha.p + beta.wind[wind[i,t]] + beta.sky[sky[i,t]] + beta.temp*temperature[i,t] + beta.time*time[i,t]
+        C[i,t] ~ dbin(p[i,t], N[i,t])
+
+    }
+  }
+
+  # Covariate mean as a model for missing covariates
+  for(i in 1:nsites){
+    for(t in 1:nyears){
+      time[i,t] ~ dnorm(mu.time, tau.time)
+      temperature[i,t] ~ dnorm(mu.temp, tau.temp)
+      # landco[i,t] ~ dnorm(mu.landcov, tau.landcov)
+    }
+  }
+  mu.time ~ dnorm(0, 0.0001)
+  tau.time <- pow(sd.time, -2)
+  sd.time ~ dunif(0, 100)
+  mu.temp ~ dnorm(0, 0.0001)
+  tau.temp <- pow(sd.temp, -2)
+  sd.temp ~ dunif(0, 100)
+
+  # Derived quantities
+  mean.phi <- ilogit(alpha.phi)
+  mean.gamma <- exp(alpha.gamma)
+  mean.p <- ilogit(alpha.p)
+  mean.lam <- exp(alpha.lambda)
+
+}
