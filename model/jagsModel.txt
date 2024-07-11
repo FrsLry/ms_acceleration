@@ -1,12 +1,12 @@
 
 model {
   # Priors
-  alpha.lambda ~ dnorm(0,0.01)
-  alpha.gamma ~ dnorm(0,0.01)
-  alpha.phi ~ dnorm(0,0.01)
-  alpha.p ~ dnorm(0,0.01)
+  alpha.lambda ~ dnorm(0,0.01)  ## lambda is the parameter for abundance at time 1
+  alpha.gamma ~ dnorm(0,0.01)   ## gamma is the parameter of recruitment
+  alpha.phi ~ dnorm(0,0.01)     ## phi is the probability of survival
+  alpha.p ~ dnorm(0,0.01)       ## p is the probability of detection
 
-  ### Covariates #########
+  ### Covariates for the observation process #########
   beta.time ~ dnorm(0,0.01)
   beta.temp ~ dnorm(0,0.01)
   ### Sky ###
@@ -43,8 +43,8 @@ model {
 
     # State process: transition model
     for(t in 1:(nyears-1)){
-      S[i,t+1] ~ dbin(phi[i,t], N[i,t])  #equivalent to rbinom(1, N, phi) in r
-      R[i, t+1] ~ dpois(gamma[i,t])      # constant recruitment
+      S[i,t+1] ~ dbin(phi[i,t], N[i,t])  
+      R[i, t+1] ~ dpois(gamma[i,t])      
       N[i,t+1] <- S[i,t+1] + R[i,t+1]
     }
 
@@ -72,10 +72,10 @@ model {
   tau.temp <- pow(sd.temp, -2)
   sd.temp ~ dunif(0, 100)
 
-  # Derived quantities
-  mean.phi <- ilogit(alpha.phi)
-  mean.gamma <- exp(alpha.gamma)
-  mean.p <- ilogit(alpha.p)
-  mean.lam <- exp(alpha.lambda)
+  # Derived quantities (NOT USED)
+  # mean.phi <- ilogit(alpha.phi)
+  # mean.gamma <- exp(alpha.gamma)
+  # mean.p <- ilogit(alpha.p)
+  # mean.lam <- exp(alpha.lambda)
 
 }
