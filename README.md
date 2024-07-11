@@ -12,7 +12,7 @@ This repository contains the scripts to reproduce the statistical analyses, figu
 
 * **Dynamic N-mixture models:** the dynamic *N*-mixture model can be found in `.\model\jagsModel.txt` and can be used to reproduce the results. We created a reproducible example with the Blue Jay in `.\scripts\example_blue_jay.R`. The species can be changed by changing the variable `species` in the script. Please note that it may take *ca.* 2 days for the model to fit. The data provided contains the input data for 564 species. The summary of the models can be found in `.\summary_models\`. 
 
-* **Propagating uncertainty in mixed models:** the second part of the analysis can be found in `.\mixed_model\`. There are 3 scripts to samples the chains at the routes/species, family and habitat levels. The mixed models can be fit by using the scripts in `.\mixed_model\script_fitting\`. The commented model is: 
+* **Propagating uncertainty in mixed models:** the second part of the analysis can be found in `.\mixed_model\`. There are 3 scripts to samples the chains at the routes/species, family and habitat levels. The mixed models can be fit by using the scripts in `.\mixed_model\script_fitting\`. The commented model is: `.\mixed_model\script_fitting\trend_model_N_spatial.R`.
 
 * **Figures:** The figures can be recreated using the script `.\mixed_model\figures.R`. 
 
