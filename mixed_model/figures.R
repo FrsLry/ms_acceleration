@@ -23,6 +23,8 @@ routes_shp$growth_rate <- overall_g_output$mean$beta1
 routes_shp$rec_rate <- overall_r_output$mean$beta1
 routes_shp$loss_rate <- overall_l_output$mean$beta1
 routes_shp$gt0 <- overall_gt0_output$mean$beta1
+routes_shp$g_lower <- overall_g_output$q2.5$beta1
+routes_shp$g_upper <- overall_g_output$q97.5$beta1
 
 ## Add lat and long of route centroid
 routes_shp <- routes_shp %>%
@@ -245,18 +247,27 @@ svg("mixed_model/figures/r_vs_l.svg",
 
 df <-
   routes_shp %>% select(ab_trend, rec_rate, loss_rate, recRate_vs_lossRate) %>% st_drop_geometry() %>%
-  arrange(recRate_vs_lossRate) %>%
   mutate(nSign = ifelse(ab_trend < 0, "decrease", "increase")) %>%
   ## Add the sd
-  add_column(sd_r = overall_r_output$sd$beta1,
-             sd_l = overall_l_output$sd$beta1)
+  add_column(upper_r = overall_r_output$q97.5$beta1,
+             lower_r = overall_r_output$q2.5$beta1,
+             upper_l = overall_l_output$q97.5$beta1,
+             lower_l = overall_l_output$q2.5$beta1) %>%
+  arrange(recRate_vs_lossRate)
 
 ggplot(df)+
-  geom_ellipse(aes(x0 = loss_rate, y0 = rec_rate, a = sd_l, b = sd_r,
-                   angle = 0, fill = recRate_vs_lossRate),
-               color = NA, alpha = .1, show.legend = F)+
-  scale_fill_manual(values = unique(sort(df$recRate_vs_lossRate)))+
-  geom_point(aes(loss_rate, rec_rate, color = recRate_vs_lossRate),
+  geom_errorbar(aes(x = loss_rate, y = rec_rate,
+                    ymin = lower_r, ymax = upper_r,
+                    colour = recRate_vs_lossRate),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  geom_errorbar(aes(x = loss_rate, y = rec_rate,
+                    xmin = lower_l, xmax = upper_l,
+                    colour = recRate_vs_lossRate),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  scale_colour_manual(values = unique(sort(df$recRate_vs_lossRate)))+
+  geom_point(aes(x = loss_rate, y = rec_rate, color = recRate_vs_lossRate),
              shape = ifelse(df$nSign == "increase", "\u2191", "\u2193"),
              size = 4, show.legend = F)+
   scale_color_manual(values = unique(sort(df$recRate_vs_lossRate)))+
@@ -425,26 +436,41 @@ rm(list = ls()[ls() %in% gsub("^summary_|\\.rds$","",list.files(path = "summary_
 species_data <- data.frame(species = as.character(),
                            ab_trend = as.numeric(),
                            r = as.numeric(),
-                           r_sd = as.numeric(),
+                           r_upper = as.numeric(),
+                           r_lower = as.numeric(),
                            l = as.numeric(),
-                           l_sd = as.numeric())
+                           l_upper = as.numeric(),
+                           l_lower = as.numeric(),
+                           g = as.numeric(),
+                           g_upper = as.numeric(),
+                           g_lower = as.numeric())
 
 for(i in 1:length(perspecies_N_output$mean$beta1)){
 
   s = species[i]
   a = perspecies_N_output$mean$beta1[i]
   r = perspecies_r_output$mean$beta1[i]
-  r_sd = perspecies_r_output$sd$beta1[i]
+  r_upper = perspecies_r_output$q97.5$beta1[i]
+  r_lower = perspecies_r_output$q2.5$beta1[i]
   l = perspecies_l_output$mean$beta1[i]
-  l_sd = perspecies_l_output$sd$beta1[i]
+  l_upper = perspecies_l_output$q97.5$beta1[i]
+  l_lower = perspecies_l_output$q2.5$beta1[i]
+  g = perspecies_g_output$mean$beta1[i]
+  g_upper = perspecies_g_output$q97.5$beta1[i]
+  g_lower = perspecies_g_output$q2.5$beta1[i]
 
   species_data <- rbind(species_data,
                         data.frame(species = s,
                                    ab_trend = a,
                                    r = r,
-                                   r_sd = r_sd,
+                                   r_upper = r_upper,
+                                   r_lower = r_lower,
                                    l = l,
-                                   l_sd = l_sd))
+                                   l_upper = l_upper,
+                                   l_lower = l_lower,
+                                   g = g,
+                                   g_upper = g_upper,
+                                   g_lower = g_lower))
 
 }
 
@@ -472,10 +498,17 @@ svg("mixed_model/figures/rec_vs_loss_species.svg",
 
 tmp %>%
   ggplot()+
-  geom_ellipse(aes(x0 = l, y0 = r, a = l_sd, b = r_sd,
-                   angle = 0, fill = rec_vs_loss),
-               color = NA, alpha = .1, show.legend = F)+
-  scale_fill_manual(values = unique(sort(tmp$rec_vs_loss)))+
+  geom_errorbar(aes(x = l, y = r,
+                    ymin = r_lower, ymax = r_upper,
+                    colour = rec_vs_loss),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  geom_errorbar(aes(x = l, y = r,
+                    xmin = l_lower, xmax = l_upper,
+                    colour = rec_vs_loss),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  scale_colour_manual(values = unique(sort(tmp$rec_vs_loss)))+
   geom_point(aes(l, r, color = rec_vs_loss),
              shape = ifelse(tmp$nSign == "increase", "\u2191", "\u2193"),
              show.legend = F, size = 4)+
@@ -486,7 +519,7 @@ tmp %>%
   geom_text_repel(aes(l, r, label = species), check_overlap = T,
                   color = "black",
                   min.segment.length = unit(0, 'lines'),
-                  # max.overlaps = 4,  ## too control the number of labels
+                  max.overlaps = 10,  ## too control the number of labels
                   segment.size = 1,
                   fontface = "bold",
                   size = 3)+
@@ -583,32 +616,38 @@ family <- readr::read_csv("data/phylo.csv")
 ## Filter the species with good Rhat
 family = family[family$English_Common_Name %in% species,]
 
-## Extrat family names
+## Extract family names
 families <- unique(family$Family)
 
 families_data <- data.frame(family = as.character(),
                             ab_trend = as.numeric(),
                             r = as.numeric(),
-                            r_sd = as.numeric(),
+                            r_upper = as.numeric(),
+                            r_lower = as.numeric(),
                             l = as.numeric(),
-                            l_sd = as.numeric())
+                            l_upper = as.numeric(),
+                            l_lower = as.numeric())
 
 for(i in 1:length(perfamily_N_output$mean$beta1)){
 
   f = families[i]
   a = perfamily_N_output$mean$beta1[i]
   r = perfamily_r_output$mean$beta1[i]
-  r_sd = perfamily_r_output$sd$beta1[i]
+  r_upper = perfamily_r_output$q97.5$beta1[i]
+  r_lower = perfamily_r_output$q2.5$beta1[i]
   l = perfamily_l_output$mean$beta1[i]
-  l_sd = perfamily_l_output$sd$beta1[i]
+  l_upper = perfamily_l_output$q97.5$beta1[i]
+  l_lower = perfamily_l_output$q2.5$beta1[i]
 
   families_data <- rbind(families_data,
                         data.frame(family = f,
                                    ab_trend = a,
                                    r = r,
-                                   r_sd = r_sd,
+                                   r_upper = r_upper,
+                                   r_lower = r_lower,
                                    l = l,
-                                   l_sd = l_sd))
+                                   l_upper = l_upper,
+                                   l_lower = l_lower))
 
 }
 
@@ -634,10 +673,17 @@ svg("mixed_model/figures/rec_vs_loss_families.svg",
 
 tmp %>%
   ggplot()+
-  geom_ellipse(aes(x0 = l, y0 = r, a = l_sd, b = r_sd,
-                   angle = 0, fill = rec_vs_loss),
-               color = NA, alpha = .1, show.legend = F)+
-  scale_fill_manual(values = unique(sort(tmp$rec_vs_loss)))+
+  geom_errorbar(aes(x = l, y = r,
+                    ymin = r_lower, ymax = r_upper,
+                    colour = rec_vs_loss),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  geom_errorbar(aes(x = l, y = r,
+                    xmin = l_lower, xmax = l_upper,
+                    colour = rec_vs_loss),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  scale_colour_manual(values = unique(sort(tmp$rec_vs_loss)))+
   geom_point(aes(l, r, color = rec_vs_loss),
              shape = ifelse(tmp$nSign == "increase", "\u2191", "\u2193"),
              show.legend = F, size = 4)+
@@ -719,26 +765,32 @@ habitats <- rownames(mean_N_habitats)
 habitats_data <- data.frame(habitat = as.character(),
                             ab_trend = as.numeric(),
                             r = as.numeric(),
-                            r_sd = as.numeric(),
+                            r_upper = as.numeric(),
+                            r_lower = as.numeric(),
                             l = as.numeric(),
-                            l_sd = as.numeric())
+                            l_upper = as.numeric(),
+                            l_lower = as.numeric())
 
 for(i in 1:length(perhabitat_N_output$mean$beta1)){
 
   h = habitats[i]
   a = perhabitat_N_output$mean$beta1[i]
   r = perhabitat_r_output$mean$beta1[i]
-  r_sd = perhabitat_r_output$sd$beta1[i]
+  r_upper = perhabitat_r_output$q97.5$beta1[i]
+  r_lower = perhabitat_r_output$q2.5$beta1[i]
   l = perhabitat_l_output$mean$beta1[i]
-  l_sd = perhabitat_l_output$sd$beta1[i]
+  l_upper = perhabitat_l_output$q97.5$beta1[i]
+  l_lower = perhabitat_l_output$q2.5$beta1[i]
 
   habitats_data <- rbind(habitats_data,
                          data.frame(habitat = h,
                                     ab_trend = a,
                                     r = r,
-                                    r_sd = r_sd,
+                                    r_upper = r_upper,
+                                    r_lower = r_lower,
                                     l = l,
-                                    l_sd = l_sd))
+                                    l_upper = l_upper,
+                                    l_lower = l_lower))
 
 }
 
@@ -764,10 +816,17 @@ svg("mixed_model/figures/rec_vs_loss_habitats.svg",
 
 tmp %>%
   ggplot()+
-  geom_ellipse(aes(x0 = l, y0 = r, a = l_sd, b = r_sd,
-                   angle = 0, fill = rec_vs_loss),
-               color = NA, alpha = .1, show.legend = F)+
-  scale_fill_manual(values = unique(sort(tmp$rec_vs_loss)))+
+  geom_errorbar(aes(x = l, y = r,
+                    ymin = r_lower, ymax = r_upper,
+                    colour = rec_vs_loss),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  geom_errorbar(aes(x = l, y = r,
+                    xmin = l_lower, xmax = l_upper,
+                    colour = rec_vs_loss),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  scale_colour_manual(values = unique(sort(tmp$rec_vs_loss)))+
   geom_point(aes(l, r, color = rec_vs_loss),
              shape = ifelse(tmp$nSign == "increase", "\u2191", "\u2193"),
              show.legend = F, size = 4)+
