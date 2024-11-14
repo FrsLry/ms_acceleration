@@ -77,7 +77,7 @@ for(metric in c("ab_trend_gam",
       ggplot()+
       geom_sf(data = states_shp)+
       geom_sf(aes(color = variable), size = 5, show.legend = FALSE)+
-      scale_color_gradient2(low = "#a50026", midpoint = 0, mid = "#ffffbf", high = "#313695")+
+      scale_color_gradient2(low = "#e31a1cff", midpoint = 0, mid = "#ffff99", high = "#1f78b4ff")+
       geom_sf(fill = NA, data = states_shp, color = alpha("grey",0.5))+
       ggtitle(metric)+
       theme_bw()+
@@ -93,7 +93,7 @@ for(metric in c("ab_trend_gam",
     ggplot()+
     geom_sf(data = states_shp)+
     geom_sf(aes(color = variable), size = 5)+
-    scale_color_gradient2(low = "#a50026", midpoint = 0, mid = "#ffffbf", high = "#313695",
+    scale_color_gradient2(low = "#e31a1cff", midpoint = 0, mid = "#ffff99", high = "#1f78b4ff",
                           labels = scales::scientific_format())+
     ggtitle(metric)+
     labs(colour = metric)+
@@ -125,7 +125,7 @@ for(metric in c("ab_trend",
         geom_sf(data = states_shp)+
         geom_sf(aes(color = variable), size = 5, show.legend = F)+
         # scale_color_gradient2(low = "#a50026", midpoint = 0, mid = "#ffffbf", high = "#313695")+
-        scale_color_gradientn(colors = c("#600000", "#a50026", "#ffffbf", "#313695", "#000060ff"),
+        scale_color_gradientn(colors = c("#99000D", "#e31a1cff", "#ffffbf", "#1f78b4ff", "#0C4B8E"),
                               values = scales::rescale(c(min(st_drop_geometry(routes_shp[,metric])),
                                                          min(st_drop_geometry(routes_shp[,paste0(metric, "_gam")])),
                                                          0,
@@ -147,7 +147,7 @@ for(metric in c("ab_trend",
     geom_sf(data = states_shp)+
     geom_sf(aes(color = variable), size = 5)+
     # scale_color_gradient2(low = "#a50026", midpoint = 0, mid = "#ffffbf", high = "#313695")+
-    scale_color_gradientn(colors = c("#600000", "#a50026", "#ffffbf", "#313695", "#000060ff"),
+    scale_color_gradientn(colors = c("#99000D", "#e31a1cff", "#ffffbf", "#1f78b4ff", "#0C4B8E"),
                           values = scales::rescale(c(min(st_drop_geometry(routes_shp[,metric])),
                                                      min(st_drop_geometry(routes_shp[,paste0(metric, "_gam")])),
                                                      0,
@@ -181,10 +181,10 @@ for(metric in c("overall_N_output", "overall_g_output",
   print(
     ggplot(mcmc_df, aes(x = var1)) +
       geom_density(alpha = 0.5, fill = "black")+
-      geom_vline(aes(xintercept = get(metric)$mean$grand.beta1), color="red") +
+      geom_vline(aes(xintercept = get(metric)$mean$grand.beta1), color="#e31a1cff") +
       geom_vline(aes(xintercept = 0), linetype = "dashed") +
-      geom_vline(aes(xintercept = get(metric)$q2.5$grand.beta1), color="blue", linetype = "dashed", size = .5)+
-      geom_vline(aes(xintercept = get(metric)$q97.5$grand.beta1), color="blue", linetype = "dashed", size = .5)+
+      geom_vline(aes(xintercept = get(metric)$q2.5$grand.beta1), color="#1f78b4ff", linetype = "dashed", size = .5)+
+      geom_vline(aes(xintercept = get(metric)$q97.5$grand.beta1), color="#1f78b4ff", linetype = "dashed", size = .5)+
       ylab(metric) +
       theme_bw()
   )
@@ -223,23 +223,23 @@ dev.off()
 ## Rec rate vs. Loss rate
 ## Add the color palette
 routes_shp <- routes_shp %>% mutate(recRate_vs_lossRate = case_when(
-  (rec_rate > 0 & loss_rate > 0 & abs(rec_rate) > abs(loss_rate)) ~ "#b3df8afa",
-  (rec_rate > 0 & loss_rate > 0 & abs(rec_rate) < abs(loss_rate)) ~ "#f5a582fa",
-  (rec_rate < 0 & loss_rate > 0 & abs(rec_rate) < abs(loss_rate)) ~ "#ca0020fa",
-  (rec_rate < 0 & loss_rate > 0 & abs(rec_rate) > abs(loss_rate)) ~ "#e66101fa",
-  (rec_rate < 0 & loss_rate < 0 & abs(rec_rate) > abs(loss_rate)) ~ "#feb963fa",
-  (rec_rate < 0 & loss_rate < 0 & abs(rec_rate) < abs(loss_rate)) ~ "#a6cee3fa",
-  (rec_rate > 0 & loss_rate < 0 & abs(rec_rate) < abs(loss_rate)) ~ "#1f78b5fa",
-  (rec_rate > 0 & loss_rate < 0 & abs(rec_rate) > abs(loss_rate)) ~ "#33a02cfa"),
+  (rec_rate > 0 & loss_rate > 0 & abs(rec_rate) > abs(loss_rate)) ~ "#B2DF8A",
+  (rec_rate > 0 & loss_rate > 0 & abs(rec_rate) < abs(loss_rate)) ~ "#FB9A99",
+  (rec_rate < 0 & loss_rate > 0 & abs(rec_rate) < abs(loss_rate)) ~ "#E31A1C",
+  (rec_rate < 0 & loss_rate > 0 & abs(rec_rate) > abs(loss_rate)) ~ "#FF7F00",
+  (rec_rate < 0 & loss_rate < 0 & abs(rec_rate) > abs(loss_rate)) ~ "#FDBF6F",
+  (rec_rate < 0 & loss_rate < 0 & abs(rec_rate) < abs(loss_rate)) ~ "#A6CEE3",
+  (rec_rate > 0 & loss_rate < 0 & abs(rec_rate) < abs(loss_rate)) ~ "#1F78B4",
+  (rec_rate > 0 & loss_rate < 0 & abs(rec_rate) > abs(loss_rate)) ~ "#33A02C"),
   recRate_vs_lossRate_gam = case_when(
-    (rec_rate_gam > 0 & loss_rate_gam > 0 & abs(rec_rate_gam) > abs(loss_rate_gam)) ~ "#b3df8afa",
-    (rec_rate_gam > 0 & loss_rate_gam > 0 & abs(rec_rate_gam) < abs(loss_rate_gam)) ~ "#f5a582fa",
-    (rec_rate_gam < 0 & loss_rate_gam > 0 & abs(rec_rate_gam) < abs(loss_rate_gam)) ~ "#ca0020fa",
-    (rec_rate_gam < 0 & loss_rate_gam > 0 & abs(rec_rate_gam) > abs(loss_rate_gam)) ~ "#e66101fa",
-    (rec_rate_gam < 0 & loss_rate_gam < 0 & abs(rec_rate_gam) > abs(loss_rate_gam)) ~ "#feb963fa",
-    (rec_rate_gam < 0 & loss_rate_gam < 0 & abs(rec_rate_gam) < abs(loss_rate_gam)) ~ "#a6cee3fa",
-    (rec_rate_gam > 0 & loss_rate_gam < 0 & abs(rec_rate_gam) < abs(loss_rate_gam)) ~ "#1f78b5fa",
-    (rec_rate_gam > 0 & loss_rate_gam < 0 & abs(rec_rate_gam) > abs(loss_rate_gam)) ~ "#33a02cfa"))
+    (rec_rate_gam > 0 & loss_rate_gam > 0 & abs(rec_rate_gam) > abs(loss_rate_gam)) ~ "#B2DF8A",
+    (rec_rate_gam > 0 & loss_rate_gam > 0 & abs(rec_rate_gam) < abs(loss_rate_gam)) ~ "#FB9A99",
+    (rec_rate_gam < 0 & loss_rate_gam > 0 & abs(rec_rate_gam) < abs(loss_rate_gam)) ~ "#E31A1C",
+    (rec_rate_gam < 0 & loss_rate_gam > 0 & abs(rec_rate_gam) > abs(loss_rate_gam)) ~ "#FF7F00",
+    (rec_rate_gam < 0 & loss_rate_gam < 0 & abs(rec_rate_gam) > abs(loss_rate_gam)) ~ "#FDBF6F",
+    (rec_rate_gam < 0 & loss_rate_gam < 0 & abs(rec_rate_gam) < abs(loss_rate_gam)) ~ "#A6CEE3",
+    (rec_rate_gam > 0 & loss_rate_gam < 0 & abs(rec_rate_gam) < abs(loss_rate_gam)) ~ "#1F78B4",
+    (rec_rate_gam > 0 & loss_rate_gam < 0 & abs(rec_rate_gam) > abs(loss_rate_gam)) ~ "#33A02C"))
 
 ## Fig rec rate vs loss rate
 svg("mixed_model/figures/r_vs_l.svg",
@@ -339,14 +339,14 @@ pdf("mixed_model/figures/boxplot_route.pdf",
     height = 2, width = 5.83)
 routes_shp %>%
   mutate(order = case_when(
-    recRate_vs_lossRate == "#e66101fa" ~ 1,
-    recRate_vs_lossRate == "#feb963fa" ~ 2,
-    recRate_vs_lossRate == "#ca0020fa" ~ 3,
-    recRate_vs_lossRate == "#f5a582fa" ~ 4,
-    recRate_vs_lossRate == "#33a02cfa" ~ 5,
-    recRate_vs_lossRate == "#b3df8afa" ~ 6,
-    recRate_vs_lossRate == "#1f78b5fa" ~ 7,
-    recRate_vs_lossRate == "#a6cee3fa" ~ 8
+    recRate_vs_lossRate == "#FF7F00" ~ 1,
+    recRate_vs_lossRate == "#FDBF6F" ~ 2,
+    recRate_vs_lossRate == "#E31A1C" ~ 3,
+    recRate_vs_lossRate == "#FB9A99" ~ 4,
+    recRate_vs_lossRate == "#33A02C" ~ 5,
+    recRate_vs_lossRate == "#B2DF8A" ~ 6,
+    recRate_vs_lossRate == "#1F78B4" ~ 7,
+    recRate_vs_lossRate == "#A6CEE3" ~ 8
   )) %>%
   ggplot()+
   geom_hline(aes(yintercept = 0), size = 1, linetype = "dashed")+
@@ -371,14 +371,14 @@ pdf("mixed_model/figures/boxplot_route_gam.pdf",
     height = 2, width = 5.83)
 routes_shp %>%
   mutate(order = case_when(
-    recRate_vs_lossRate_gam == "#e66101fa" ~ 1,
-    recRate_vs_lossRate_gam == "#feb963fa" ~ 2,
-    recRate_vs_lossRate_gam == "#ca0020fa" ~ 3,
-    recRate_vs_lossRate_gam == "#f5a582fa" ~ 4,
-    recRate_vs_lossRate_gam == "#33a02cfa" ~ 5,
-    recRate_vs_lossRate_gam == "#b3df8afa" ~ 6,
-    recRate_vs_lossRate_gam == "#1f78b5fa" ~ 7,
-    recRate_vs_lossRate_gam == "#a6cee3fa" ~ 8
+    recRate_vs_lossRate_gam == "#FF7F00" ~ 1,
+    recRate_vs_lossRate_gam == "#FDBF6F" ~ 2,
+    recRate_vs_lossRate_gam == "#E31A1C" ~ 3,
+    recRate_vs_lossRate_gam == "#FB9A99" ~ 4,
+    recRate_vs_lossRate_gam == "#33A02C" ~ 5,
+    recRate_vs_lossRate_gam == "#B2DF8A" ~ 6,
+    recRate_vs_lossRate_gam == "#1F78B4" ~ 7,
+    recRate_vs_lossRate_gam == "#A6CEE3" ~ 8
   )) %>%
   ggplot()+
   geom_hline(aes(yintercept = 0), size = 1, linetype = "dashed")+
@@ -478,14 +478,14 @@ for(i in 1:length(perspecies_N_output$mean$beta1)){
 tmp <-
 species_data %>%
   mutate(rec_vs_loss = case_when(
-    (r > 0 & l > 0 & abs(r) > abs(l)) ~ "#b3df8afa",
-    (r > 0 & l > 0 & abs(r) < abs(l)) ~ "#f5a582fa",
-    (r < 0 & l > 0 & abs(r) < abs(l)) ~ "#ca0020fa",
-    (r < 0 & l > 0 & abs(r) > abs(l)) ~ "#e66101fa",
-    (r < 0 & l < 0 & abs(r) > abs(l)) ~ "#feb963fa",
-    (r < 0 & l < 0 & abs(r) < abs(l)) ~ "#a6cee3fa",
-    (r > 0 & l < 0 & abs(r) < abs(l)) ~ "#1f78b5fa",
-    (r > 0 & l < 0 & abs(r) > abs(l)) ~ "#33a02cfa"
+    (r > 0 & l > 0 & abs(r) > abs(l)) ~ "#B2DF8A",
+    (r > 0 & l > 0 & abs(r) < abs(l)) ~ "#FB9A99",
+    (r < 0 & l > 0 & abs(r) < abs(l)) ~ "#E31A1C",
+    (r < 0 & l > 0 & abs(r) > abs(l)) ~ "#FF7F00",
+    (r < 0 & l < 0 & abs(r) > abs(l)) ~ "#FDBF6F",
+    (r < 0 & l < 0 & abs(r) < abs(l)) ~ "#A6CEE3",
+    (r > 0 & l < 0 & abs(r) < abs(l)) ~ "#1F78B4",
+    (r > 0 & l < 0 & abs(r) > abs(l)) ~ "#33A02C"
   )) %>%
   arrange(rec_vs_loss) %>%
   mutate(nSign = ifelse(ab_trend < 0, "decrease", "increase")) %>%
@@ -537,28 +537,28 @@ pdf("mixed_model/figures/boxplot_perspecies.pdf",
 tmp <-
   species_data %>%
   mutate(rec_vs_loss = case_when(
-    (r > 0 & l > 0 & abs(r) > abs(l)) ~ "#b3df8afa",
-    (r > 0 & l > 0 & abs(r) < abs(l)) ~ "#f5a582fa",
-    (r < 0 & l > 0 & abs(r) < abs(l)) ~ "#ca0020fa",
-    (r < 0 & l > 0 & abs(r) > abs(l)) ~ "#e66101fa",
-    (r < 0 & l < 0 & abs(r) > abs(l)) ~ "#feb963fa",
-    (r < 0 & l < 0 & abs(r) < abs(l)) ~ "#a6cee3fa",
-    (r > 0 & l < 0 & abs(r) < abs(l)) ~ "#1f78b5fa",
-    (r > 0 & l < 0 & abs(r) > abs(l)) ~ "#33a02cfa"
+    (r > 0 & l > 0 & abs(r) > abs(l)) ~ "#B2DF8A",
+    (r > 0 & l > 0 & abs(r) < abs(l)) ~ "#FB9A99",
+    (r < 0 & l > 0 & abs(r) < abs(l)) ~ "#E31A1C",
+    (r < 0 & l > 0 & abs(r) > abs(l)) ~ "#FF7F00",
+    (r < 0 & l < 0 & abs(r) > abs(l)) ~ "#FDBF6F",
+    (r < 0 & l < 0 & abs(r) < abs(l)) ~ "#A6CEE3",
+    (r > 0 & l < 0 & abs(r) < abs(l)) ~ "#1F78B4",
+    (r > 0 & l < 0 & abs(r) > abs(l)) ~ "#33A02C"
   )) %>%
   arrange(rec_vs_loss) %>%
   mutate(nSign = ifelse(ab_trend < 0, "decrease", "increase"))
 
 tmp %>%
   mutate(order = case_when(
-    rec_vs_loss == "#e66101fa" ~ 1,
-    rec_vs_loss == "#feb963fa" ~ 2,
-    rec_vs_loss == "#ca0020fa" ~ 3,
-    rec_vs_loss == "#f5a582fa" ~ 4,
-    rec_vs_loss == "#33a02cfa" ~ 5,
-    rec_vs_loss == "#b3df8afa" ~ 6,
-    rec_vs_loss == "#1f78b5fa" ~ 7,
-    rec_vs_loss == "#a6cee3fa" ~ 8
+    rec_vs_loss == "#FF7F00" ~ 1,
+    rec_vs_loss == "#FDBF6F" ~ 2,
+    rec_vs_loss == "#E31A1C" ~ 3,
+    rec_vs_loss == "#FB9A99" ~ 4,
+    rec_vs_loss == "#33A02C" ~ 5,
+    rec_vs_loss == "#B2DF8A" ~ 6,
+    rec_vs_loss == "#1F78B4" ~ 7,
+    rec_vs_loss == "#A6CEE3" ~ 8
   )) %>%
   ggplot()+
   geom_hline(aes(yintercept = 0), size = 1, linetype = "dashed")+
@@ -655,14 +655,14 @@ for(i in 1:length(perfamily_N_output$mean$beta1)){
 tmp <-
   families_data %>%
   mutate(rec_vs_loss = case_when(
-    (r > 0 & l > 0 & abs(r) > abs(l)) ~ "#b3df8afa",
-    (r > 0 & l > 0 & abs(r) < abs(l)) ~ "#f5a582fa",
-    (r < 0 & l > 0 & abs(r) < abs(l)) ~ "#ca0020fa",
-    (r < 0 & l > 0 & abs(r) > abs(l)) ~ "#e66101fa",
-    (r < 0 & l < 0 & abs(r) > abs(l)) ~ "#feb963fa",
-    (r < 0 & l < 0 & abs(r) < abs(l)) ~ "#a6cee3fa",
-    (r > 0 & l < 0 & abs(r) < abs(l)) ~ "#1f78b5fa",
-    (r > 0 & l < 0 & abs(r) > abs(l)) ~ "#33a02cfa"
+    (r > 0 & l > 0 & abs(r) > abs(l)) ~ "#B2DF8A",
+    (r > 0 & l > 0 & abs(r) < abs(l)) ~ "#FB9A99",
+    (r < 0 & l > 0 & abs(r) < abs(l)) ~ "#E31A1C",
+    (r < 0 & l > 0 & abs(r) > abs(l)) ~ "#FF7F00",
+    (r < 0 & l < 0 & abs(r) > abs(l)) ~ "#FDBF6F",
+    (r < 0 & l < 0 & abs(r) < abs(l)) ~ "#A6CEE3",
+    (r > 0 & l < 0 & abs(r) < abs(l)) ~ "#1F78B4",
+    (r > 0 & l < 0 & abs(r) > abs(l)) ~ "#33A02C"
   )) %>%
   arrange(rec_vs_loss) %>%
   mutate(nSign = ifelse(ab_trend < 0, "decrease", "increase"))
@@ -711,18 +711,18 @@ pdf("mixed_model/figures/boxplot_perfamily.pdf",
 
 tmp %>%
   mutate(order = case_when(
-    rec_vs_loss == "#e66101fa" ~ 1,
-    rec_vs_loss == "#feb963fa" ~ 2,
-    rec_vs_loss == "#ca0020fa" ~ 3,
-    rec_vs_loss == "#f5a582fa" ~ 4,
-    rec_vs_loss == "#33a02cfa" ~ 5,
-    rec_vs_loss == "#b3df8afa" ~ 6,
-    rec_vs_loss == "#1f78b5fa" ~ 7,
-    rec_vs_loss == "#a6cee3fa" ~ 8
+    rec_vs_loss == "#FF7F00" ~ 1,
+    rec_vs_loss == "#FDBF6F" ~ 2,
+    rec_vs_loss == "#E31A1C" ~ 3,
+    rec_vs_loss == "#FB9A99" ~ 4,
+    rec_vs_loss == "#33A02C" ~ 5,
+    rec_vs_loss == "#B2DF8A" ~ 6,
+    rec_vs_loss == "#1F78B4" ~ 7,
+    rec_vs_loss == "#A6CEE3" ~ 8
   )) %>%
   mutate(rec_vs_loss = factor(rec_vs_loss, levels = c(
-    "#e66101fa", "#feb963fa", "#ca0020fa", "#f5a582fa",
-    "#33a02cfa", "#b3df8afa", "#1f78b5fa", "#a6cee3fa"
+    "#FF7F00", "#FDBF6F", "#E31A1C", "#FB9A99",
+    "#33A02C", "#B2DF8A", "#1F78B4", "#A6CEE3"
   ))) %>%
   ggplot()+
   geom_hline(aes(yintercept = 0), size = 1, linetype = "dashed")+
@@ -735,8 +735,8 @@ tmp %>%
   #   "#33a02cfa", "#b3df8afa", "#1f78b5fa", "#a6cee3fa"
   # ))+
   scale_color_manual(values = c(
-    "#e66101fa", "#feb963fa", "#ca0020fa", "#f5a582fa",
-    "#b3df8afa", "#33a02cfa", "#1f78b5fa", "#a6cee3fa"
+    "#FF7F00", "#FDBF6F", "#E31A1C", "#FB9A99",
+    "#33A02C", "#B2DF8A", "#1F78B4", "#A6CEE3"
   ))+
   scale_y_continuous(trans= ggallin::pseudolog10_trans,
                      breaks = c(-5000,-2000,-10,0,10,1000))+
@@ -798,14 +798,14 @@ for(i in 1:length(perhabitat_N_output$mean$beta1)){
 tmp <-
   habitats_data %>%
   mutate(rec_vs_loss = case_when(
-    (r > 0 & l > 0 & abs(r) > abs(l)) ~ "#b3df8afa",
-    (r > 0 & l > 0 & abs(r) < abs(l)) ~ "#f5a582fa",
-    (r < 0 & l > 0 & abs(r) < abs(l)) ~ "#ca0020fa",
-    (r < 0 & l > 0 & abs(r) > abs(l)) ~ "#e66101fa",
-    (r < 0 & l < 0 & abs(r) > abs(l)) ~ "#feb963fa",
-    (r < 0 & l < 0 & abs(r) < abs(l)) ~ "#a6cee3fa",
-    (r > 0 & l < 0 & abs(r) < abs(l)) ~ "#1f78b5fa",
-    (r > 0 & l < 0 & abs(r) > abs(l)) ~ "#33a02cfa"
+    (r > 0 & l > 0 & abs(r) > abs(l)) ~ "#B2DF8A",
+    (r > 0 & l > 0 & abs(r) < abs(l)) ~ "#FB9A99",
+    (r < 0 & l > 0 & abs(r) < abs(l)) ~ "#E31A1C",
+    (r < 0 & l > 0 & abs(r) > abs(l)) ~ "#FF7F00",
+    (r < 0 & l < 0 & abs(r) > abs(l)) ~ "#FDBF6F",
+    (r < 0 & l < 0 & abs(r) < abs(l)) ~ "#A6CEE3",
+    (r > 0 & l < 0 & abs(r) < abs(l)) ~ "#1F78B4",
+    (r > 0 & l < 0 & abs(r) > abs(l)) ~ "#33A02C"
   )) %>%
   arrange(rec_vs_loss) %>%
   mutate(nSign = ifelse(ab_trend < 0, "decrease", "increase"))
