@@ -1,0 +1,225 @@
+---
+title: "Can we estimate recruitment and survival just from counts of individuals?"
+author: "François Leroy, Marta Jarzyna, Petr Keil"
+date: "2024-11-15"
+output: 
+  html_document: 
+    toc: yes
+    number_sections: yes
+    highlight: tango
+    theme: cerulean
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Description
+
+Here we demonstrate that **recruitment (R) and survival (S) can be estimated 
+using just counts of individuals (C)**, if the counts are from multiple sites at multiple times (seasons). We also show that this works without the need to have repeated counts within one season.  
+**Motivation:** Many of our colleagues find it counter-intuitive, and hard to believe, that R and C can be estimated from just the time series of counts, without any additional ecological information. Here we show that it is definitely possible. This is because the counts are provided at multiple time steps, but also across multiple sites. This then enables the demographic parameters to be statistically identifiable. 
+
+**Principle:** We first simulate abundance time series at multiple sites, with known recruitment and survival parameters. We then use the dynamic N-mixture model (Dail, D. & Madsen, L. Models for Estimating Abundance from Repeated Counts of an Open Metapopulation. Biometrics 67, 577–587, 2011, 10.1111/j.1541-0420.2010.01465.x) to correctly estimate the recruitment and survival parameters.
+
+We encourage readers to explore and modify the simulation using different parameter values.
+
+----
+
+The script is heavily inspired by code from AHM vol. 2 by Kéry and Royle (Kéry, M. & Royle, J. A. Applied Hierarchical Modeling in Ecology: Analysis of Distribution, Abundance and Species Richness in R and BUGS: Volume 2: Dynamic and Advanced Models, Academic Press, Cambridge, 2020, ISBN 978-0-12-823768-7). If you use this script, please give THEM credits.
+
+---
+
+Estimated time to run the script: 4 minutes
+
+# Libraries, settings
+
+```{r, message = FALSE, warning = FALSE}
+library(jagsUI) # provides interface with JAGS
+set.seed(2017, kind = "L'Ecuyer")
+```
+
+# Simulating the data
+
+## Function that simulates the data
+
+```{r}
+simDM0 <- function(nsites = sites, # number of sites
+                   nsurveys = surveys, # number of surveys per year
+                   nyears = years, # number of years
+                   lambda = lambda, # abundance at time 1
+                   phi = phi, # probability of survival
+                   gamma = gamma, #recruitment parameter
+                   p = p) # detection probability
+{
+
+  ## No covariates (like in our analysis)
+  y <- array(NA, dim = c(nsites, nyears, nsurveys))
+  N <- matrix(NA, nsites, nyears)
+  S <- R <- matrix(NA, nsites, nyears-1)
+  N[,1] <- rpois(nsites, lambda) # Initial state
+  for(t in 1:(nyears-1)) { # State dynamics
+    S[,t] <- rbinom(nsites, N[,t], phi) # Survival process
+    R[,t] <- rpois(nsites, gamma) # Recruitment process
+    N[,t+1] <- S[,t] + R[,t]
+  }
+  for(j in 1:nsurveys){ # Observation process
+    y[,,j] <- rbinom(nsites*nyears, N, p)
+  }
+
+  # Put observed data into two dimensions
+  yy <- array(NA, dim = c(nsites, nsurveys*nyears))
+  for(t in 1:nyears){
+    yy[,(nsurveys * t-(nsurveys-1)):(nsurveys*t)] <- y[,t,]
+  }
+  return(list(nsites = nsites, nsurveys = nsurveys, nyears = nyears,
+              lambda = lambda, phi = phi, gamma = gamma, p = p, N = N, S = S, R = R,
+              y = y, yy = yy))
+}
+```
+
+## Paramters of the simulated world
+
+```{r}
+sites = 100 # the number of sites, or routes of the BBS data
+surveys = 1 # we used the DM model without repeated count, thus this variable should be set to 1
+years = 10 # length of the time series
+```
+
+We warn that using the same number of sites (1033) and the same length of time series (35) as in our analysis will take a very long time to fit.
+
+## Parameters for demographic rates and observation process
+
+```{r}
+# values to the parameters we want to predict
+lambda = 4 # abundance at time 1
+phi = 0.8 # probability of survival
+gamma = 1.5 # recruitment parameter
+p = 0.7 # detection probability
+```
+
+## Actual simulation of the data
+
+Note that the simulated data only have the abundance counts (bdata$C), i.e. there is no information on recruitment nor survival in the data. There are multiple years, but no repeated counts per year, i.e. each year and each site only have one count.
+
+```{r}
+data <- simDM0(nsites = sites, 
+               nsurveys = surveys, 
+               nyears = years, 
+               lambda = lambda,
+               phi = phi, 
+               gamma = gamma, 
+               p = p)
+
+# Bundle the data together for JAGS
+bdata <- list(C = data$y, 
+              nsites = dim(data$y)[1], 
+              nsurveys = dim(data$y)[3],
+              nyears = dim(data$y)[2])
+# looking at the first six lines of the counts (C) table
+head(bdata$C)
+```
+
+# Fitting the dynamic N-mixture model to the data to retrieve recruitment and survival
+
+## The Bayesian model specification in JAGS
+
+```{r}
+cat(file = "DM1.txt","
+model {
+  # Priors
+  lambda ~ dunif(0, 100)   # Initial site-specific abundance
+  phi ~ dunif(0, 1)        # Apparent survival
+  gamma ~ dunif(0, 5)      # Recruitment rate
+  p ~ dunif(0, 1)          # Detection probability
+
+  # Likelihood
+  for(i in 1:nsites){
+    # State process: initial condition
+    N[i,1] ~ dpois(lambda)
+    # State process: transition model
+    for(t in 1:(nyears-1)){
+      S[i,t+1] ~ dbin(phi, N[i,t])     # Survival process
+      R[i,t+1] ~ dpois(gamma)        # 'absolute' recruitment = 'constant'
+      N[i,t+1] <- S[i,t+1] + R[i,t+1]
+    }
+    # Observation process
+    for(t in 1:nyears){
+      for(j in 1:nsurveys){
+        C[i,t,j] ~ dbin(p, N[i,t])
+      }
+    }
+  }
+}
+")
+```
+
+## Fit the model using MCMC in JAGS
+
+```{r, fig.width=10, fig.height = 4}
+# Initial values (they are the same as we used in our main empirical analysis)
+Nst <- apply(data$y, c(1,2), max) + 2
+Nst[, 2:dim(data$y)[2]] <- NA # Deterministic, N <- S + R
+R1 <- apply(data$y, c(1,2), max) # Observed max. counts + 1 as inits
+R1[,1] <- NA
+inits <- function(){list( lambda = runif(1, 6, 16), phi = runif(1),
+                          gamma = runif(1), p = runif(1), N = Nst, R = R1 + 1 )}
+
+# Parameters to be monitored
+params <- c("lambda", "phi", "gamma", "p", "S", "R")
+
+# Call JAGS
+out1 <- jags(data = bdata, 
+             inits = inits, 
+             parameters.to.save = params, 
+             model.file = "DM1.txt", 
+             n.adapt = 1000, 
+             n.chains = 3,
+             n.thin = 5, 
+             n.iter = 10000, 
+             n.burnin = 5000,
+             parallel = TRUE)
+
+# Check convergence of the parameters
+traceplot(out1, layout=c(1,4), parameters = c("lambda", "phi", "gamma", "p"))
+```
+
+## Plot the estimated and true parameters
+
+Estimated parameters are represented by the density plots of the three MCMC chains. True parameters are the vertical solid lines.
+
+```{r, fig.width=8, fig.height=8}
+par(mfrow=c(2,2))
+densityplot(out1, parameters = "lambda"); abline(v=lambda, lwd=2)
+densityplot(out1, parameters = "phi"); abline(v=phi, lwd=2)
+densityplot(out1, parameters = "gamma"); abline(v=gamma, lwd=2)
+densityplot(out1, parameters = "p"); abline(v=p, lwd=2)
+```
+
+## Plot the estimated vs true site-specific survival (S) and recruitment (R)
+
+```{r, fig.width=10, fig.height=5}
+# get true counts of surviving and recruited individuals from simulated data 
+true.S <- data$S
+true.R <- data$R
+
+# get estimated counts of surviving and recruited individuals from the model
+est.S <- out1$mean$S[,-1]
+est.R <- out1$mean$R[,-1]
+
+# plot the estimated vs observed counts
+par(mfrow=c(1,2))
+plot(true.S, est.S, xlab="True survival (S)", ylab="Estimated survival (S)")
+abline(a= 0, b=1, col="red")
+plot(true.R, est.R, xlab="True recruitment (R)", ylab="Estimated recruitment (R)")
+abline(a= 0, b=1, col="red")
+```
+
+# Session info
+
+```{r}
+sessionInfo()
+```
+
+
+
