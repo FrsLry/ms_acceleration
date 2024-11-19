@@ -726,10 +726,10 @@ tmp %>%
   ))) %>%
   ggplot()+
   geom_hline(aes(yintercept = 0), size = 1, linetype = "dashed")+
-  geom_boxplot(aes(reorder(rec_vs_loss, order), ab_trend, colour = rec_vs_loss),
+  geom_boxplot(aes(rec_vs_loss, ab_trend, colour = rec_vs_loss),
                show.legend = F, width = 0.5, outlier.shape = NA)+
   # geom_violin(aes(reorder(rec_vs_loss, order), ab_trend, fill = rec_vs_loss), show.legend = F, width = 1)+
-  ggforce::geom_sina(aes(reorder(rec_vs_loss, order), ab_trend), show.legend = F, alpha = .5, size = .5)+
+  ggforce::geom_sina(aes(rec_vs_loss, ab_trend), show.legend = F, alpha = .5, size = .5)+
   # scale_fill_manual(values = c(
   #   "#e66101fa", "#feb963fa", "#ca0020fa", "#f5a582fa",
   #   "#33a02cfa", "#b3df8afa", "#1f78b5fa", "#a6cee3fa"
@@ -737,7 +737,7 @@ tmp %>%
   scale_color_manual(values = c(
     "#FF7F00", "#FDBF6F", "#E31A1C", "#FB9A99",
     "#33A02C", "#B2DF8A", "#1F78B4", "#A6CEE3"
-  ))+
+  ), drop=FALSE)+
   scale_y_continuous(trans= ggallin::pseudolog10_trans,
                      breaks = c(-5000,-2000,-10,0,10,1000))+
   scale_x_discrete(drop = FALSE)+
