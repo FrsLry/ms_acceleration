@@ -30,7 +30,7 @@ The script is heavily inspired by code from AHM vol. 2 by Kéry and Royle (Kéry
 
 ---
 
-Estimated time to run the script: 4 minutes
+Estimated time to run the script: 25 minutes
 
 # Libraries, settings
 
@@ -168,16 +168,19 @@ inits <- function(){list( lambda = runif(1, 6, 16), phi = runif(1),
 # Parameters to be monitored
 params <- c("lambda", "phi", "gamma", "p", "S", "R")
 
+# MCMC settings that we used in our analysis (you can modify them to make the fitting shorter)
+na <- 1000 ; ni <- 100000 ; nt <- 10 ; nb <- 75000 ; nc <- 3
+
 # Call JAGS
 out1 <- jags(data = bdata, 
              inits = inits, 
              parameters.to.save = params, 
              model.file = "DM1.txt", 
-             n.adapt = 1000, 
-             n.chains = 3,
-             n.thin = 5, 
-             n.iter = 10000, 
-             n.burnin = 5000,
+             n.adapt = na, 
+             n.chains = nc,
+             n.thin = nt, 
+             n.iter = ni, 
+             n.burnin = nb,
              parallel = TRUE)
 
 # Check convergence of the parameters
