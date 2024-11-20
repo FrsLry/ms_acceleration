@@ -17,8 +17,9 @@ knitr::opts_chunk$set(echo = TRUE)
 # Description
 
 Here we demonstrate that **recruitment (R) and survival (S) can be estimated 
-using just counts of individuals (C)**, if the counts are from multiple sites at multiple times (seasons). We also show that this works without the need to have repeated counts within one season.  
-**Motivation:** Many of our colleagues find it counter-intuitive, and hard to believe, that R and C can be estimated from just the time series of counts, without any additional ecological information. Here we show that it is definitely possible. This is because the counts are provided at multiple time steps, but also across multiple sites. This then enables the demographic parameters to be statistically identifiable. 
+using just counts of individuals (C)**, if the counts are from multiple sites at multiple times (seasons). We also show that this works without the need to have repeated counts within one season.
+
+**Motivation:** Many of our colleagues find it counter-intuitive, and hard to believe, that R and S can be estimated from just the time series of counts, without any additional ecological information. Here we show that it is definitely possible. This is because the counts are provided at multiple time steps, but also across multiple sites. This then enables the demographic parameters to be statistically identifiable. 
 
 **Principle:** We first simulate abundance time series at multiple sites, with known recruitment and survival parameters. We then use the dynamic N-mixture model (Dail, D. & Madsen, L. Models for Estimating Abundance from Repeated Counts of an Open Metapopulation. Biometrics 67, 577–587, 2011, 10.1111/j.1541-0420.2010.01465.x) to correctly estimate the recruitment and survival parameters.
 
