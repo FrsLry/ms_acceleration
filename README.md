@@ -16,6 +16,8 @@ This repository contains the scripts to reproduce the statistical analyses, figu
 
 * **Figures:** The figures can be recreated using the script `.\mixed_model\figures.R`. 
 
+* **Simulations:** In `.\simulations\`, users can use a simulation framework, with known recruitment and survival parameters, and then use the dynamic N-mixture model (Dail & Madsen 2011) to correctly estimate the recruitment and survival parameters. Users are invited to test several values of parameters. Also accessible at [here](https://frslry.github.io/ms_acceleration/simulations/simulations.html).  
+
 ## System requirements
 
 All the dynamic *N*-mixture models were fit on the [Ohio Supercomputer Center ](https://www.oh-tech.org/) under Linux operating system with JAGS ver. 4.3.0. This repository was created on Windows 10, with R ver. 4.2.1.   
