@@ -19,6 +19,18 @@ bbox["ymin"] <- bbox$ymin-2
 bbox["xmax"] <- bbox$xmax+2
 bbox["ymax"] <- bbox$ymax+2
 
+# LAND COVER CLASS AREA --------------------------------------------------------
+# downloaded data are at a 30 sec resolution (~1 km at equator)
+
+grass <- geodata::landcover("grassland", path="interpreting_patterns/rasters")
+grass <- terra::crop(grass, bbox)
+grass <- terra::aggregate(grass, fact = 10, fun = sum)
+# writeRaster(grass, filename="interpreting_patterns/rasters/grassland.tif", overwrite=TRUE)
+
+plot(grass, col=map.pal("viridis", 100))
+
+routes$grass <- terra::extract(grass, routes, fun = sum)[,2]
+
 
 # CROPLAND DENSITY AND ITS TEMPORAL CHANGE (2003-2019) -------------------------
 # downloaded data are at a 30 sec resolution (~1 km at equator)
@@ -75,6 +87,7 @@ routes$delta.footprint <- terra::extract(delta.footprint, routes, fun = mean)[,2
 
 # load the 2.5 min raster with human population density
 pop2000 <-rast("interpreting_patterns/rasters/gpw_v4_population_count_rev11_2000_2pt5_min.tif")
+pop2000 <- terra::crop(pop2000, bbox)
 
 # extract the population density values, summing the values of 2.5 min pixels touching a route
 routes$pop2000 <- terra::extract(pop2000, routes, fun = sum)[,2]
@@ -112,6 +125,12 @@ ggplot(routes, aes(x = pop2000, y=delta_g)) +
   geom_hline(yintercept=0) +
   geom_smooth(method='lm', formula= y~x)
 
+
+ggplot(routes, aes(x = pop2000, y=delta_g)) +
+  geom_point() +
+  scale_x_log10() +
+  geom_hline(yintercept=0) +
+  geom_smooth(method='lm', formula= y~x)
 
 ggplot(routes, aes(x = footprint93, y=delta_g)) +
   geom_point() +
