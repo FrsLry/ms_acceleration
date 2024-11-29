@@ -154,6 +154,9 @@ rf
 
 varImpPlot(rf)
 
+plot(predict(rf), routes$delta_g)
+abline(a=0, b=1)
+
 
 
 
