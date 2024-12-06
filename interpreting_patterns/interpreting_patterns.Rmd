@@ -381,9 +381,9 @@ rf.l
 predictors <- forcats::fct_inorder(rep(row.names(importance(rf.g)), times = 4))
 
 importances <- c(rf.g.rsq*importance(rf.g)/sum(importance(rf.g)),
-                 rf.g.rsq*importance(rf.r)/sum(importance(rf.r)),
-                 rf.g.rsq*importance(rf.l)/sum(importance(rf.l)),
-                 rf.g.rsq*importance(rf.N)/sum(importance(rf.N)))
+                 rf.r.rsq*importance(rf.r)/sum(importance(rf.r)),
+                 rf.l.rsq*importance(rf.l)/sum(importance(rf.l)),
+                 rf.N.rsq*importance(rf.N)/sum(importance(rf.N)))
 
 response <- forcats::fct_inorder(rep(c("Growth rate change",
                                        "Recruitment rate change",
@@ -392,6 +392,7 @@ response <- forcats::fct_inorder(rep(c("Growth rate change",
                 each = length(importance(rf.g))))
 
 res.rf <- data.frame(predictors, importances, response)
+res.rf
 ```
 
 ## Plot variable importances
