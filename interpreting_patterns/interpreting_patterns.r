@@ -272,22 +272,78 @@ dev.off()
 
 # ------------------------------------------------------------------------------
 # RANDOM FOREST ANALYSIS
-rf.g <-randomForest(delta_g_gam ~ grass + trees + shrubs + water +
-                                  NPP + temp +   Nfertilizer + footprint93 +
-                                  NDVI82to12 + temp91to20 + footprint93to09 + crops03to19,
+
+rf.predictors <- c("grass",
+                   "trees",
+                   "shrubs",
+                   "water",
+                   "temp",
+                   "crops03",
+                   "footprint93",
+                   "NDVI82to12",
+                   "temp91to20",
+                   "footprint93to09",
+                   "crops03to19")
+
+
+rf.g <-randomForest(formula(paste("delta_g_gam ~ ", paste(rf.predictors, collapse=" + "))),
                     data = na.omit(dat)) # NOTE THE NA OMIT!!
 
 rf.g
-varImpPlot(rf.g)
-partialPlot(rf.g, pred.data=na.omit(dat), x.var="Nfertilizer")
-
-plot(na.omit(dat)$delta_g_gam, predict(rf.g))
-abline(a = 0, b = 1)
+rf.g.rsq <- rf.g$rsq[length(rf.g$rsq)]
 
 
-rf.N <-randomForest(delta_N_gam ~ grass + trees + shrubs + water +
-                      NPP + temp +   Nfertilizer + footprint93 +
-                      NDVI82to12 + temp91to20 + footprint93to09 + crops03to19,
-                    data = na.omit(dat)) # NOTE THE NA OMIT!!
+# -------------
+
+rf.N <-randomForest(formula(paste("delta_N_gam ~ ", paste(rf.predictors, collapse=" + "))),
+                    data = na.omit(dat))
 rf.N
-varImpPlot(rf.N)
+rf.N.rsq <- rf.N$rsq[length(rf.N$rsq)]
+
+
+
+# -------------
+
+rf.r <-randomForest(formula(paste("delta_r_gam ~ ", paste(rf.predictors, collapse=" + "))),
+                    data = na.omit(dat))
+rf.r
+rf.r.rsq <- rf.r$rsq[length(rf.r$rsq)]
+
+
+# -------------
+
+rf.l <-randomForest(formula(paste("delta_l_gam ~ ", paste(rf.predictors, collapse=" + "))),
+                    data = na.omit(dat))
+rf.l
+rf.l.rsq <- rf.l$rsq[length(rf.l$rsq)]
+
+# -------------
+
+predictors <- forcats::fct_inorder(rep(row.names(importance(rf.g)), times = 4))
+
+importances <- c(rf.g.rsq*importance(rf.g)/sum(importance(rf.g)),
+                 rf.g.rsq*importance(rf.r)/sum(importance(rf.r)),
+                 rf.g.rsq*importance(rf.l)/sum(importance(rf.l)),
+                 rf.g.rsq*importance(rf.N)/sum(importance(rf.N)))
+
+response <- forcats::fct_inorder(rep(c("Growth rate change",
+                                       "Recruitment rate change",
+                                       "Loss rate change",
+                                       "Abundance change"),
+                each = length(importance(rf.g))))
+res.rf <- data.frame(predictors, importances, response)
+
+# -------------
+
+png("interpreting_patterns/rf_importances.png", width=1400, height=600, res = 150)
+
+ggplot(dat = res.rf, aes(x = importances, y = predictors)) +
+  geom_col() +
+  facet_grid(.~response) +
+  xlab("Relative importance")
+
+dev.off()
+
+
+
+
