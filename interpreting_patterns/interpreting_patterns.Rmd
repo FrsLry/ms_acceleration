@@ -1,18 +1,39 @@
-## Figures
+---
+title: "Co-incedence of acceleration patterns with environmental and human-related
+  variables"
+author: "Petr Keil"
+date: "2024-12-06"
+output: 
+  html_document: 
+    toc: yes
+    highlight: tango
+    theme: cerulean
+    number_sections: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries and data
+
+```{r, warning = FALSE, message = FALSE}
 library(sf)
 library(terra)
-library(mgcv)
-library(geodata)
+library(mgcv) 
+library(geodata) 
 library(rnaturalearth)
 library(tidyverse)
 library(randomForest)
 library(psych)
+library(forcats)
 
-rm(list = ls())
+rm(list = ls()) # clear the environment
+```
 
-## Load the shapefile
-routes <- st_read("data/routes_shp/routes_selected_lines.shp") %>% arrange(routes)
-
+```{r, warning = FALSE, message = FALSE}
+# Load the shapefile with BBS routes
+routes <- st_read("../data/routes_shp/routes_selected_lines.shp") %>% arrange(routes)
 
 ## get the states polygon
 states <-
@@ -24,89 +45,111 @@ states <-
                     ymax = 62,
                     ymin = 16)))
 
-# LAND COVER CLASS AREA --------------------------------------------------------
+```
 
-grass <- sqrt(terra::rast("interpreting_patterns/rasters/grassland.tif"))
+# Loading rasters and extracting their values to the routes
+
+## Area of land cover types
+
+```{r}
+grass <- sqrt(terra::rast("rasters/grassland.tif"))
 routes$grass <- terra::extract(grass, routes, fun = mean)[,2]
 
-shrubs <- sqrt(terra::rast("interpreting_patterns/rasters/shrubs.tif"))
+shrubs <- sqrt(terra::rast("rasters/shrubs.tif"))
 routes$shrubs <- terra::extract(shrubs, routes, fun = mean)[,2]
 
-trees <- sqrt(terra::rast("interpreting_patterns/rasters/trees.tif"))
+trees <- sqrt(terra::rast("rasters/trees.tif"))
 routes$trees <- terra::extract(trees, routes, fun = mean)[,2]
 
-built <- sqrt(terra::rast("interpreting_patterns/rasters/built.tif"))
+built <- sqrt(terra::rast("rasters/built.tif"))
 routes$built <- terra::extract(built, routes, fun = mean)[,2]
 
-wetland <- sqrt(terra::rast("interpreting_patterns/rasters/wetland.tif"))
+wetland <- sqrt(terra::rast("rasters/wetland.tif"))
 routes$wetland <- terra::extract(wetland, routes, fun = mean)[,2]
 
-water <- sqrt(terra::rast("interpreting_patterns/rasters/water.tif"))
+water <- sqrt(terra::rast("rasters/water.tif"))
 routes$water <- terra::extract(water, routes, fun = mean)[,2]
+```
 
-# NPP (MOD17) ------------------------------------------------------------------
-NPP <- terra::rast("interpreting_patterns/rasters/NPP.tif")
+## Net primary productivity (NPP) from MODIS
+
+```{r}
+NPP <- terra::rast("rasters/NPP.tif")
 routes$NPP <- terra::extract(NPP, routes, fun = mean)[,2]
+```
 
-# WorldClim PRECIPITATION AND TEMPERATURE --------------------------------------
-temp <- terra::rast("interpreting_patterns/rasters/temp.tif")
+## Temperature, precipitation, and elevation from WorldClim
+
+```{r}
+temp <- terra::rast("rasters/temp.tif")
 routes$temp <- terra::extract(temp, routes, fun = mean)[,2]
 
-precip <- terra::rast("interpreting_patterns/rasters/precip.tif")
+precip <- terra::rast("rasters/precip.tif")
 routes$precip <- terra::extract(precip, routes, fun = mean)[,2]
 
-# ELEVATION --------------------------------------------------------------------
-
-elevat <- terra::rast("interpreting_patterns/rasters/elev.tif")
+elevat <- terra::rast("rasters/elev.tif")
 routes$elevat <- terra::extract(elevat, routes, fun = mean)[,2]
+```
 
+## Temperature trend (1991-2020)
 
-# TEMPERATURE TREND (1991-2020) ------------------------------------------------
-temp91to20 <- terra::rast("interpreting_patterns/rasters/T_trend.tif")
+```{r}
+temp91to20 <- terra::rast("rasters/T_trend.tif")
 routes$temp91to20 <- terra::extract(temp91to20, routes, fun = mean)[,2]
+```
 
-# N FERTILIZER USAGE -----------------------------------------------------------
-Nfertilizer <- terra::rast("interpreting_patterns/rasters/Nfertilizer.tif")
+## Nitrogen fertilizer usage 
+
+```{r}
+Nfertilizer <- terra::rast("rasters/Nfertilizer.tif")
 routes$Nfertilizer <- terra::extract(Nfertilizer, routes, fun = mean)[,2]
+```
 
+## Cropland area and its temporal change (2003-2019)
 
-# CROPLAND DENSITY AND ITS TEMPORAL CHANGE (2003-2019) -------------------------
-crops03 <- sqrt(terra::rast("interpreting_patterns/rasters/crops03.tif"))
-crops19 <- sqrt(terra::rast("interpreting_patterns/rasters/crops19.tif"))
+```{r}
+crops03 <- sqrt(terra::rast("rasters/crops03.tif"))
+crops19 <- sqrt(terra::rast("rasters/crops19.tif"))
 
 routes$crops03 <- terra::extract(crops03, routes, fun = mean)[,2]
 routes$crops19 <- terra::extract(crops19, routes, fun = mean)[,2]
 routes$crops03to19 <- routes$crops19 - routes$crops03
+```
 
-# NDVI CHANGE (1982-2012) ------------------------------------------------------
-NDVI82to12 <- terra::rast("interpreting_patterns/rasters/NDVI82to12.tif")
+## Normalized Difference Vegetation Index (NDVI) change (1982-2012)
+
+```{r}
+NDVI82to12 <- terra::rast("rasters/NDVI82to12.tif")
 routes$NDVI82to12 <- terra::extract(NDVI82to12, routes, fun = mean)[,2]
+```
 
-# HUMAN FOOTPRINT AND ITS TEMPORAL CHANGE (1993-2009) --------------------------
-footprint93 <- terra::rast("interpreting_patterns/rasters/footprint93.tif")
-footprint09 <- terra::rast("interpreting_patterns/rasters/footprint09.tif")
+## Human footprint and its temporal change (1993-2009)
+
+```{r}
+footprint93 <- terra::rast("rasters/footprint93.tif")
+footprint09 <- terra::rast("rasters/footprint09.tif")
 delta.footprint <- footprint09 - footprint93
 
 # extract the values from the rasters to routes
 routes$footprint93 <- terra::extract(footprint93, routes, fun = mean)[,2]
 routes$footprint09 <- terra::extract(footprint09, routes, fun = mean)[,2]
 routes$footprint93to09 <- terra::extract(delta.footprint, routes, fun = mean)[,2]
+```
 
+## Human population density in 2000
 
-# POPULATION DENSITY, GPW dataset ----------------------------------------------
-
+```{r}
 # load the 2.5 min raster with human population density
-pop2000 <- log10(rast("interpreting_patterns/rasters/pop2000.tif") + 1)
+pop2000 <- log10(rast("rasters/pop2000.tif") + 1)
 
 # extract the population density values, summing the values of 2.5 min pixels touching a route
 routes$log10pop2000 <- terra::extract(pop2000, routes, fun = mean)[,2]
+```
 
+# Plot the rasters
 
-# ------------------------------------------------------------------------------
-# PLOT THE RASTERS
-
-png("interpreting_patterns/rasters.png", width= 3000, height = 3000, res = 200)
-
+```{r}
+png("rasters.png", width= 2000, height = 1700, res = 150)
 
 par(mfrow=c(5,4))
 
@@ -206,22 +249,21 @@ plot(water, col=map.pal("viridis", 100),
      background = "grey")
 lines(states, col = "white")
 
-# --------------
-
 dev.off()
+```
 
+![rasters](rasters.png)
 
+# Load the estimated demographic rates
 
-# ------------------------------------------------------------------------------
-## Load the models' output
-for(file in list.files("mixed_model/outputs/", full.names = T)){
-  assign(gsub("^mixed_model/outputs/|\\.rds$","",file),
+```{r}
+# Load the models' output
+for(file in list.files("../mixed_model/outputs/", full.names = T)){
+  assign(gsub("^../mixed_model/outputs/|\\.rds$","",file),
          readRDS(file = file))
 }
 
-
-# ------------------------------------------------------------------------------
-# THE GAM MODEL ----------------------------------------------------------------
+# THE GAM MODEL 
 # extract latitude and longitude of route centroids
 coords <- data.frame(st_centroid(routes) %>% st_coordinates() )
 names(coords) <- c("lon","lat")
@@ -233,7 +275,6 @@ routes$delta_g <- overall_g_output$mean$beta1
 routes$delta_l <- overall_l_output$mean$beta1
 routes$delta_r <- overall_r_output$mean$beta1
 
-
 # fit the gam models
 routes$delta_N_gam <- gam(delta_N ~ s(lon, lat, bs = "gp", k = 100, m = 2),
                           data = routes)$fitted.values
@@ -244,19 +285,20 @@ routes$delta_l_gam <- gam(delta_l ~ s(lon, lat, bs = "gp", k = 100, m = 2),
 routes$delta_r_gam <- gam(delta_r ~ s(lon, lat, bs = "gp", k = 100, m = 2),
                           data = routes)$fitted.values
 
-# ------------------------------------------------------------------------------
-
-# preparing the data for analyses
+# prepare data.frame for analyses
 data.frame(names(routes))
 dat <- as.data.frame(routes[, 24:ncol(routes)])
 dat <- select(dat, -c("geometry")) # remove the last "geometry" column
 
 
-# ------------------------------------------------------------------------------
+```
 
-# correlation matrix plot from the "psych" package
+# Exploring patterns and correlations
 
-png("interpreting_patterns/all_pairs.png", width= 2500, height = 2500)
+## Pairwise Spearman correlations
+
+```{r}
+png("all_pairs.png", width= 2500, height = 2500)
 
 psych::pairs.panels(dat,
                     ellipses = FALSE,
@@ -269,56 +311,73 @@ psych::pairs.panels(dat,
                     method = "spearman") # note the Spearman coefficient!
 
 dev.off()
+```
 
-# ------------------------------------------------------------------------------
-# RANDOM FOREST ANALYSIS
+![pairs](all_pairs.png)
 
+# Random Forest analysis
+
+## Set predictors
+
+```{r}
+# set all the predictors here which will be used in all the rf models
 rf.predictors <- c("grass",
                    "trees",
                    "shrubs",
                    "water",
                    "temp",
-                   "crops03",
+                   "Nfertilizer",
                    "footprint93",
                    "NDVI82to12",
                    "temp91to20",
                    "footprint93to09",
                    "crops03to19")
+```
 
+## Growth rate change (delta g)
 
-rf.g <-randomForest(formula(paste("delta_g_gam ~ ", paste(rf.predictors, collapse=" + "))),
+```{r}
+rf.g <-randomForest(formula(paste("delta_g_gam ~ ", 
+                                  paste(rf.predictors, collapse=" + "))),
                     data = na.omit(dat)) # NOTE THE NA OMIT!!
 
+rf.g.rsq <- rf.g$rsq[length(rf.g$rsq)] # explained variation
 rf.g
-rf.g.rsq <- rf.g$rsq[length(rf.g$rsq)]
+```
 
+## Abundance change (delta N)
 
-# -------------
-
-rf.N <-randomForest(formula(paste("delta_N_gam ~ ", paste(rf.predictors, collapse=" + "))),
-                    data = na.omit(dat))
+```{r}
+rf.N <-randomForest(formula(paste("delta_N_gam ~ ", 
+                                  paste(rf.predictors, collapse=" + "))),
+                    data = na.omit(dat)) # NOTE THE NA OMIT!!
+rf.N.rsq <- rf.N$rsq[length(rf.N$rsq)] # explained variation
 rf.N
-rf.N.rsq <- rf.N$rsq[length(rf.N$rsq)]
+```
 
+## Recruitment change (delta r)
 
-
-# -------------
-
-rf.r <-randomForest(formula(paste("delta_r_gam ~ ", paste(rf.predictors, collapse=" + "))),
-                    data = na.omit(dat))
+```{r}
+rf.r <-randomForest(formula(paste("delta_r_gam ~ ", 
+                                  paste(rf.predictors, collapse=" + "))),
+                    data = na.omit(dat)) # NOTE THE NA OMIT!!
+rf.r.rsq <- rf.r$rsq[length(rf.r$rsq)] # explained variation
 rf.r
-rf.r.rsq <- rf.r$rsq[length(rf.r$rsq)]
+```
 
+## Loss change (delta l)
 
-# -------------
-
-rf.l <-randomForest(formula(paste("delta_l_gam ~ ", paste(rf.predictors, collapse=" + "))),
+```{r}
+rf.l <-randomForest(formula(paste("delta_l_gam ~ ", 
+                                  paste(rf.predictors, collapse=" + "))),
                     data = na.omit(dat))
+rf.l.rsq <- rf.l$rsq[length(rf.l$rsq)] # explained variation
 rf.l
-rf.l.rsq <- rf.l$rsq[length(rf.l$rsq)]
+```
 
-# -------------
+## Export variable importances
 
+```{r}
 predictors <- forcats::fct_inorder(rep(row.names(importance(rf.g)), times = 4))
 
 importances <- c(rf.g.rsq*importance(rf.g)/sum(importance(rf.g)),
@@ -331,11 +390,15 @@ response <- forcats::fct_inorder(rep(c("Growth rate change",
                                        "Loss rate change",
                                        "Abundance change"),
                 each = length(importance(rf.g))))
+
 res.rf <- data.frame(predictors, importances, response)
+```
 
-# -------------
+## Plot variable importances
 
-png("interpreting_patterns/rf_importances.png", width=1400, height=600, res = 150)
+```{r}
+png("rf_importances.png", 
+    width=1400, height=600, res = 150)
 
 ggplot(dat = res.rf, aes(x = importances, y = predictors)) +
   geom_col() +
@@ -343,6 +406,14 @@ ggplot(dat = res.rf, aes(x = importances, y = predictors)) +
   xlab("Relative importance")
 
 dev.off()
+```
+![importances](rf_importances.png)
+
+# Session info
+
+```{r}
+sessionInfo()
+```
 
 
 
