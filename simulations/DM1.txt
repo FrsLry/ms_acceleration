@@ -13,7 +13,7 @@ model {
     # State process: transition model
     for(t in 1:(nyears-1)){
       S[i,t+1] ~ dbin(phi, N[i,t])     # Survival process
-      R[i,t+1] ~ dpois(gamma)        # 'absolute' recruitment = 'constant'
+      R[i,t+1] ~ dpois(gamma)          # 'absolute' recruitment = 'constant'
       N[i,t+1] <- S[i,t+1] + R[i,t+1]
     }
     # Observation process

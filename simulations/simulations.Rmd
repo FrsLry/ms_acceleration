@@ -31,7 +31,7 @@ The script is heavily inspired by code from AHM vol. 2 by Kéry and Royle (2020)
 
 ---
 
-Estimated time to run the script: 25 minutes   
+Estimated time to run the script: 15 minutes (8 cores, 16 threads, 16GB RAM)  
 
 # References
 
@@ -98,10 +98,21 @@ We warn that using the same number of sites (1033) and the same length of time s
 
 ```{r}
 # values to the parameters we want to predict
-lambda = 4 # abundance at time 1
-phi = 0.8 # probability of survival
-gamma = 1.5 # recruitment parameter
-p = 0.7 # detection probability
+
+lambda = 4    # abundance at time 1
+phi = 0.8     # probability of survival
+gamma = 1.5   # recruitment parameter
+p = 0.7       # detection probability
+
+## Parameters examples for a subset of species for which the models converged.
+## Please note that the convergence and estimations of the parameters may be wrong for the following values in the simulation,
+## mainly due to restricted spatial and temporal extent (compared to our analysis), and due to a lack of covariates.
+
+          # Evening Grosbeak  # Hooded Warbler  # White-winged Dove       
+# lambda  # 3.19              # 1.09            # 0.53                                          
+# phi     # 0.92              # 0.99            # 0.98                                          
+# gamma   # 0.04              # 0.04            # 0.03                                          
+# p       # 0.21              # 0.40            # 0.47                                          
 ```
 
 ## Actual simulation of the data
@@ -146,7 +157,7 @@ model {
     # State process: transition model
     for(t in 1:(nyears-1)){
       S[i,t+1] ~ dbin(phi, N[i,t])     # Survival process
-      R[i,t+1] ~ dpois(gamma)        # 'absolute' recruitment = 'constant'
+      R[i,t+1] ~ dpois(gamma)          # 'absolute' recruitment = 'constant'
       N[i,t+1] <- S[i,t+1] + R[i,t+1]
     }
     # Observation process
