@@ -94,7 +94,8 @@ for(metric in c("ab_trend_gam",
     geom_sf(data = states_shp)+
     geom_sf(aes(color = variable), size = 5)+
     scale_color_gradient2(low = "#e31a1cff", midpoint = 0, mid = "#ffff99", high = "#1f78b4ff",
-                          labels = scales::scientific_format())+
+                          labels = scales::comma_format()
+                          )+
     ggtitle(metric)+
     labs(colour = metric)+
     theme(plot.title = element_text(hjust = 0.5),
@@ -125,7 +126,7 @@ for(metric in c("ab_trend",
         geom_sf(data = states_shp)+
         geom_sf(aes(color = variable), size = 5, show.legend = F)+
         # scale_color_gradient2(low = "#a50026", midpoint = 0, mid = "#ffffbf", high = "#313695")+
-        scale_color_gradientn(colors = c("#99000D", "#e31a1cff", "#ffffbf", "#1f78b4ff", "#0C4B8E"),
+        scale_color_gradientn(colors = c("#99000D", "#e31a1cff", "#ffff99", "#1f78b4ff", "#0C4B8E"),
                               values = scales::rescale(c(min(st_drop_geometry(routes_shp[,metric])),
                                                          min(st_drop_geometry(routes_shp[,paste0(metric, "_gam")])),
                                                          0,
@@ -147,7 +148,7 @@ for(metric in c("ab_trend",
     geom_sf(data = states_shp)+
     geom_sf(aes(color = variable), size = 5)+
     # scale_color_gradient2(low = "#a50026", midpoint = 0, mid = "#ffffbf", high = "#313695")+
-    scale_color_gradientn(colors = c("#99000D", "#e31a1cff", "#ffffbf", "#1f78b4ff", "#0C4B8E"),
+    scale_color_gradientn(colors = c("#99000D", "#e31a1cff", "#ffff99", "#1f78b4ff", "#0C4B8E"),
                           values = scales::rescale(c(min(st_drop_geometry(routes_shp[,metric])),
                                                      min(st_drop_geometry(routes_shp[,paste0(metric, "_gam")])),
                                                      0,
@@ -596,7 +597,7 @@ for(metric in c("N", "g")){
           geom_hline(yintercept = ifelse(metric %in% c("gt0", "g"), 0, NA), linetype="dashed", color = "black")+
           stat_summary(aes(year, value), fun = median, geom = "line", color = "blue",
                        linewidth = 1, linetype = 2)+
-          geom_hline(yintercept = ifelse(metric %in% c("N"), median(pull(d[,2])), NA), linetype="dashed", color = "black")+
+          # geom_hline(yintercept = ifelse(metric %in% c("N"), median(pull(d[,2])), NA), linetype="dashed", color = "black")+
           scale_y_continuous(trans= ggallin::ssqrt_trans)+
           ylab(metric)+
           theme_light())
@@ -850,24 +851,32 @@ dev.off()
 
 ## Trends per habitat
 pdf("mixed_model/figures/trends_habitat.pdf",
-    width = 7.83, height = 4.13)
+    width = 8.27, height = 5.83)
 for(metric in c("N", "g", "rr", "lr")){
 
   d <- readRDS(paste0("mixed_model/save_samples/mean_",metric,"_habitats.rds"))
+  sd <- readRDS(paste0("mixed_model/save_samples/sd_",metric,"_habitats.rds"))
 
   d <- d %>% as.data.frame()
-  colnames(d) <- c(1:ncol(d))
+  colnames(d) <- c(((2021-ncol(d))+1):2021)
+  sd <- sd %>% as.data.frame()
+  colnames(sd) <- c(((2021-ncol(d))+1):2021)
 
   print(d %>% rownames_to_column(var = "habitat") %>%
-          pivot_longer(cols = -habitat, names_to = "year", values_to = "value") %>%
+          pivot_longer(cols = -habitat, names_to = "year", values_to = "values") %>%
+          left_join(
+            sd %>% rownames_to_column(var = "habitat") %>%
+              pivot_longer(cols = -habitat, names_to = "year", values_to = "sd")
+          ) %>%
           mutate(year = as.numeric(year)) %>%
           ggplot()+
-          geom_line(aes(year, value, group = habitat, color = habitat))+
-          geom_hline(yintercept = ifelse(metric %in% c("gt0", "g"), 0, NA), linetype="dashed", color = "black")+
-          # stat_summary(aes(year, value), fun = median, geom = "line", color = "blue",
-          #              linewidth = 1, linetype = 2)+
-          # geom_hline(yintercept = ifelse(metric %in% c("N"), median(d[,1]), NA), linetype="dashed", color = "black")+
-          scale_y_continuous(trans= ggallin::ssqrt_trans)+
+          ## add 95% credible interval
+          geom_ribbon(aes(year, values, group = habitat,
+                          ymin = values-sd*1.96,
+                          ymax= values+sd*1.96), colour="grey", fill="grey",alpha=0.5)+
+          geom_line(aes(year, values, group = habitat, color = habitat), show.legend = F)+
+          facet_wrap(vars(habitat), scales = "free")+
+          geom_hline(yintercept = if (metric == "g") 0 else NULL, linetype="dashed", color = "black")+
           ylab(metric)+
           theme_light())
 
@@ -875,3 +884,69 @@ for(metric in c("N", "g", "rr", "lr")){
 
 dev.off()
 
+## Plot of change in abundance vs. change in growth rate
+pdf("mixed_model/figures/deltan_vs_deltag.pdf",
+    width = 8.27, height = 5.83)
+
+routes_shp %>% select(ab_trend, growth_rate) %>% mutate(data = "Not smoothed") %>% st_drop_geometry() %>%
+  rbind(routes_shp %>% select(ab_trend_gam, growth_rate_gam) %>%
+          rename(ab_trend = ab_trend_gam,
+                 growth_rate = growth_rate_gam) %>%
+          mutate(data = "Smoothed") %>% st_drop_geometry()) %>%
+  ggplot()+
+  geom_point(aes(ab_trend, growth_rate))+
+  geom_vline(xintercept = 0, linetype = "dashed")+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  facet_wrap(. ~ data, scales = "free")+
+  xlab("Abundance change")+
+  ylab("Growth rate change")+
+  theme_bw()
+
+dev.off()
+
+
+# routes_shp %>%
+#   st_transform(crs = "+proj=aea +lon_0=-108.4570304 +lat_1=34.300327 +lat_2=64.5191945 +lat_0=49.4097608 +datum=WGS84 +units=m +no_defs") %>%
+#   st_centroid() %>%
+#   rename(variable = metric) %>%
+#   filter(ab_trend_gam < 0) %>%
+#   ggplot()+
+#   geom_sf(data = states_shp)+
+#   geom_sf(aes(color = variable), size = 5, show.legend = F)+
+#   scale_color_gradient2(low = "#e31a1cff", midpoint = 0, mid = "#ffff99", high = "#1f78b4ff",
+#                         limits = c(min(routes_shp$growth_rate_gam), max(routes_shp$growth_rate_gam)))+
+#   geom_sf(fill = NA, data = states_shp, color = alpha("grey",0.5))+
+#   ggtitle(metric)+
+#   theme_bw()+
+#   theme(plot.title = element_text(hjust = 0.5),
+#         text = element_text(size = 18))
+#
+#
+#
+#
+# grid::grid.draw(
+#   cowplot::get_legend(
+#     routes_shp %>%
+#       st_transform(crs = "+proj=aea +lon_0=-108.4570304 +lat_1=34.300327 +lat_2=64.5191945 +lat_0=49.4097608 +datum=WGS84 +units=m +no_defs") %>%
+#       st_centroid() %>%
+#       rename(variable = metric) %>%
+#       filter(ab_trend > 0) %>%
+#       ggplot()+
+#       geom_sf(data = states_shp)+
+#       geom_sf(aes(color = variable), size = 5, show.legend = T)+
+#       # scale_color_gradient2(low = "#a50026", midpoint = 0, mid = "#ffffbf", high = "#313695")+
+#       scale_color_gradientn(colors = c("#99000D", "#e31a1cff", "#ffff99", "#1f78b4ff", "#0C4B8E"),
+#                             values = scales::rescale(c(min(st_drop_geometry(routes_shp[,metric])),
+#                                                        min(st_drop_geometry(routes_shp[,paste0(metric, "_gam")])),
+#                                                        0,
+#                                                        ifelse(metric %in% c("ab_trend", "gt0"), abs(min(st_drop_geometry(routes_shp[,paste0(metric, "_gam")]))), max(st_drop_geometry(routes_shp[,paste0(metric, "_gam")]))),
+#                                                        max(st_drop_geometry(routes_shp[,metric])))))+
+#       geom_sf(fill = NA, data = states_shp, color = alpha("grey",0.5))+
+#       ggtitle(metric)+
+#       theme_bw()+
+#       # labs(colour = paste0("log(",metric,")"))+
+#       theme(plot.title = element_text(hjust = 0.5),
+#             text = element_text(size = 18))
+#   )
+#
+# )

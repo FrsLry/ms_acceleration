@@ -40,11 +40,13 @@ for(sp in unique(sp_N$species)[unique(sp_N$species) != "Eurasian Collared-Dove"]
 df_r$type <- "Density dependence of recruitment rate"
 
 ## Plot the slopes vs. p-values of these lm
+pdf("mixed_model/figures/density_dpendence.pdf",
+    width = 5.83, height = 4.13)
 df_g %>% rbind(df_r) %>%
   mutate(slope = as.numeric(slope),
          pval = as.numeric(pval)) %>%
   mutate(color = ifelse(.$slope < 0 & .$pval < 0.05, "Negative & Significant", "Other")) %>%
-  mutate(color = ifelse(.$slope > 0 & .$pval < 0.05, "Positive & Significant", color)) %>% View()
+  mutate(color = ifelse(.$slope > 0 & .$pval < 0.05, "Positive & Significant", color)) %>%
   ggplot()+
   geom_point(aes(slope, pval, colour = color), show.legend = F)+
   scale_x_continuous(trans= ggallin::ssqrt_trans)+
@@ -56,4 +58,5 @@ df_g %>% rbind(df_r) %>%
                                 "Other" = "grey"))+
   facet_wrap(vars(type))+
   theme_bw()
+dev.off()
 
