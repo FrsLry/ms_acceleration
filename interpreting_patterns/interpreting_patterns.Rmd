@@ -155,99 +155,99 @@ par(mfrow=c(5,4))
 
 plot(footprint09 - footprint93, col=map.pal("differences", 100),
      main = "Human footprint change (1993-2009)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(NDVI82to12, col=map.pal("differences", 100),
      main = "NDVI change (1982-2012)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(temp91to20, col=map.pal("differences", 100),
      main = "Temperature change (1991-2020)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(crops19 - crops03, col=map.pal("differences", 100),
      main = "Cropland area change (2003-2019)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 # ---------
 
 plot(footprint93, col=map.pal("viridis", 100),
      main = "Human footprint (1993)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(NPP, col=map.pal("viridis", 100),
      main = "mean NPP",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(temp, col=map.pal("viridis", 100),
      main = "mean Annual Temperature",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(crops03, col=map.pal("viridis", 100),
      main = "sqrt(Cropland area in 2003)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 # -----------
 
 plot(pop2000, col=map.pal("viridis", 100),
      main = "log10 Population (2000)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(precip, col=map.pal("viridis", 100),
      main = "mean Annual Precipitation",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(elevat, col=map.pal("viridis", 100),
      main = "mean Elevation",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(Nfertilizer, col=map.pal("viridis", 100),
      main = "mean N fertilizer use",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 # -----------
 
 plot(grass, col=map.pal("viridis", 100),
      main = "sqrt(grassland area)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(shrubs, col=map.pal("viridis", 100),
      main = "sqrt (shrubland area)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(trees, col=map.pal("viridis", 100),
      main = "sqrt (tree-covered area)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(built, col=map.pal("viridis", 100),
      main = "sqrt (built-up area)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(wetland, col=map.pal("viridis", 100),
      main = "sqrt (wetland area)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 plot(water, col=map.pal("viridis", 100),
      main = "sqrt (water area)",
-     background = "grey")
-lines(states, col = "white")
+     background = "white")
+lines(states, col = "grey")
 
 dev.off()
 ```
@@ -404,7 +404,8 @@ png("rf_importances.png",
 ggplot(dat = res.rf, aes(x = importances, y = predictors)) +
   geom_col() +
   facet_grid(.~response) +
-  xlab("Relative importance")
+  xlab("Relative importance")+
+  theme_bw()
 
 dev.off()
 ```
