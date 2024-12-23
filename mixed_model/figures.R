@@ -108,10 +108,11 @@ for(metric in c("ab_trend_gam",
 
 dev.off()
 
+## Make non gam maps.
+# We use the color palette of the GAM in order to show that the patterns inferred from the GAM make sense
 pdf("mixed_model/figures/trend_maps.pdf",
     width=11, height=8.5)
-## Make non gam maps.
-# We use the color palette of the GAM in order to show that the patterns infered from the GAM make sense
+
 for(metric in c("ab_trend",
                 "growth_rate",
                 "rec_rate",
@@ -306,6 +307,7 @@ ggplot(df)+
 
 dev.off()
 
+## Map rec rate vs loss rate gam
 pdf("mixed_model/figures/maps_rec_vs_loss.pdf",
     width=11, height=8.5)
 ## Rec vs loss maps
@@ -931,49 +933,3 @@ cowplot::plot_grid(p1, p2)
 
 dev.off()
 
-
-# routes_shp %>%
-#   st_transform(crs = "+proj=aea +lon_0=-108.4570304 +lat_1=34.300327 +lat_2=64.5191945 +lat_0=49.4097608 +datum=WGS84 +units=m +no_defs") %>%
-#   st_centroid() %>%
-#   rename(variable = metric) %>%
-#   filter(ab_trend_gam < 0) %>%
-#   ggplot()+
-#   geom_sf(data = states_shp)+
-#   geom_sf(aes(color = variable), size = 5, show.legend = F)+
-#   scale_color_gradient2(low = "#e31a1cff", midpoint = 0, mid = "#ffff99", high = "#1f78b4ff",
-#                         limits = c(min(routes_shp$growth_rate_gam), max(routes_shp$growth_rate_gam)))+
-#   geom_sf(fill = NA, data = states_shp, color = alpha("grey",0.5))+
-#   ggtitle(metric)+
-#   theme_bw()+
-#   theme(plot.title = element_text(hjust = 0.5),
-#         text = element_text(size = 18))
-#
-#
-#
-#
-# grid::grid.draw(
-#   cowplot::get_legend(
-#     routes_shp %>%
-#       st_transform(crs = "+proj=aea +lon_0=-108.4570304 +lat_1=34.300327 +lat_2=64.5191945 +lat_0=49.4097608 +datum=WGS84 +units=m +no_defs") %>%
-#       st_centroid() %>%
-#       rename(variable = metric) %>%
-#       filter(ab_trend > 0) %>%
-#       ggplot()+
-#       geom_sf(data = states_shp)+
-#       geom_sf(aes(color = variable), size = 5, show.legend = T)+
-#       # scale_color_gradient2(low = "#a50026", midpoint = 0, mid = "#ffffbf", high = "#313695")+
-#       scale_color_gradientn(colors = c("#99000D", "#e31a1cff", "#ffff99", "#1f78b4ff", "#0C4B8E"),
-#                             values = scales::rescale(c(min(st_drop_geometry(routes_shp[,metric])),
-#                                                        min(st_drop_geometry(routes_shp[,paste0(metric, "_gam")])),
-#                                                        0,
-#                                                        ifelse(metric %in% c("ab_trend", "gt0"), abs(min(st_drop_geometry(routes_shp[,paste0(metric, "_gam")]))), max(st_drop_geometry(routes_shp[,paste0(metric, "_gam")]))),
-#                                                        max(st_drop_geometry(routes_shp[,metric])))))+
-#       geom_sf(fill = NA, data = states_shp, color = alpha("grey",0.5))+
-#       ggtitle(metric)+
-#       theme_bw()+
-#       # labs(colour = paste0("log(",metric,")"))+
-#       theme(plot.title = element_text(hjust = 0.5),
-#             text = element_text(size = 18))
-#   )
-#
-# )
