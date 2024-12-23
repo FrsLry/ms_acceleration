@@ -884,15 +884,40 @@ for(metric in c("N", "g", "rr", "lr")){
 
 dev.off()
 
+## Add 95% credible interval for abundance change
+routes_shp$N_lower <- overall_N_output$q2.5$beta1
+routes_shp$N_upper <- overall_N_output$q97.5$beta1
+
 ## Plot of change in abundance vs. change in growth rate
 pdf("mixed_model/figures/deltan_vs_deltag.pdf",
     width = 8.27, height = 5.83)
 
-routes_shp %>% select(ab_trend, growth_rate) %>% mutate(data = "Not smoothed") %>% st_drop_geometry() %>%
-  rbind(routes_shp %>% select(ab_trend_gam, growth_rate_gam) %>%
-          rename(ab_trend = ab_trend_gam,
-                 growth_rate = growth_rate_gam) %>%
-          mutate(data = "Smoothed") %>% st_drop_geometry()) %>%
+p1 <-
+  routes_shp %>%
+  select(ab_trend, growth_rate, g_upper, g_lower, N_upper, N_lower) %>%
+  mutate(data = "Not smoothed") %>% st_drop_geometry() %>%
+  ggplot()+
+  geom_point(aes(ab_trend, growth_rate))+
+  geom_vline(xintercept = 0, linetype = "dashed")+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  geom_errorbar(aes(x = ab_trend, y = growth_rate,
+                    ymin = g_lower, ymax = g_upper),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  geom_errorbar(aes(x = ab_trend, y = growth_rate,
+                    xmin = N_lower, xmax = N_upper),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  ylab("Growth rate change")+
+  xlab("Abundance change")+
+  facet_wrap(. ~ data, scales = "free")+
+  theme_bw()
+
+p2 <-
+  routes_shp %>% select(ab_trend_gam, growth_rate_gam) %>%
+  rename(ab_trend = ab_trend_gam,
+         growth_rate = growth_rate_gam) %>%
+  mutate(data = "Smoothed") %>% st_drop_geometry() %>%
   ggplot()+
   geom_point(aes(ab_trend, growth_rate))+
   geom_vline(xintercept = 0, linetype = "dashed")+
@@ -901,6 +926,8 @@ routes_shp %>% select(ab_trend, growth_rate) %>% mutate(data = "Not smoothed") %
   xlab("Abundance change")+
   ylab("Growth rate change")+
   theme_bw()
+
+cowplot::plot_grid(p1, p2)
 
 dev.off()
 
