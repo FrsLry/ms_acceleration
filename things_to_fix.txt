@@ -1,4 +1,0 @@
-- shapefile in data/routes_shp/all_roads should be renamed to all_routes
-- include alterantive parameter values for the example simulation, and maybe set lower number of MCMC draws, so that the simulation runs faster for new users
-
- 
