@@ -91,11 +91,11 @@ elevat <- terra::rast("rasters/elev.tif")
 routes$elevat <- terra::extract(elevat, routes, fun = mean)[,2]
 ```
 
-## Temperature trend (1991-2020)
+## Temperature trend (1987-2021)
 
 ```{r}
-temp91to20 <- terra::rast("rasters/T_trend.tif")
-routes$temp91to20 <- terra::extract(temp91to20, routes, fun = mean)[,2]
+temp87to21 <- terra::rast("rasters/temp87to21.tif")
+routes$temp87to21 <- terra::extract(temp87to21, routes, fun = mean)[,2]
 ```
 
 ## Nitrogen fertilizer usage 
@@ -143,7 +143,7 @@ routes$footprint93to09 <- terra::extract(delta.footprint, routes, fun = mean)[,2
 pop2000 <- log10(rast("rasters/pop2000.tif") + 1)
 
 # extract the population density values, summing the values of 2.5 min pixels touching a route
-routes$log10pop2000 <- terra::extract(pop2000, routes, fun = mean)[,2]
+routes$pop2000 <- terra::extract(pop2000, routes, fun = mean)[,2]
 ```
 
 # Plot the rasters
@@ -154,100 +154,100 @@ png("rasters.png", width= 2000, height = 1700, res = 150)
 par(mfrow=c(5,4))
 
 plot(footprint09 - footprint93, col=map.pal("differences", 100),
-     main = "Human footprint change (1993-2009)",
-     background = "white")
-lines(states, col = "grey")
+     main = "Human footprint difference (1993 vs 2009)",
+     background = "grey")
+lines(states, col = "white")
 
 plot(NDVI82to12, col=map.pal("differences", 100),
-     main = "NDVI change (1982-2012)",
-     background = "white")
-lines(states, col = "grey")
+     main = "NDVI trend (from 1982 to 2012)",
+     background = "grey")
+lines(states, col = "white")
 
-plot(temp91to20, col=map.pal("differences", 100),
-     main = "Temperature change (1991-2020)",
-     background = "white")
-lines(states, col = "grey")
+plot(temp87to21, col=map.pal("differences", 100),
+     main = "Temperature trend (from 1987 to 2021)",
+     background = "grey")
+lines(states, col = "white")
 
 plot(crops19 - crops03, col=map.pal("differences", 100),
-     main = "Cropland area change (2003-2019)",
-     background = "white")
-lines(states, col = "grey")
+     main = "Cropland area change (2003 vs 2019)",
+     background = "grey")
+lines(states, col = "white")
 
 # ---------
 
 plot(footprint93, col=map.pal("viridis", 100),
      main = "Human footprint (1993)",
-     background = "white")
-lines(states, col = "grey")
+     background = "grey")
+lines(states, col = "white")
 
 plot(NPP, col=map.pal("viridis", 100),
-     main = "mean NPP",
-     background = "white")
-lines(states, col = "grey")
+     main = "mean NPP (2000-2015)",
+     background = "grey")
+lines(states, col = "white")
 
 plot(temp, col=map.pal("viridis", 100),
-     main = "mean Annual Temperature",
-     background = "white")
-lines(states, col = "grey")
+     main = "mean Annual Temperature (1970-2000)",
+     background = "grey")
+lines(states, col = "white")
 
 plot(crops03, col=map.pal("viridis", 100),
      main = "sqrt(Cropland area in 2003)",
-     background = "white")
-lines(states, col = "grey")
+     background = "grey")
+lines(states, col = "white")
 
 # -----------
 
 plot(pop2000, col=map.pal("viridis", 100),
-     main = "log10 Population (2000)",
-     background = "white")
-lines(states, col = "grey")
+     main = "log10 Population in 2000",
+     background = "grey")
+lines(states, col = "white")
 
 plot(precip, col=map.pal("viridis", 100),
-     main = "mean Annual Precipitation",
-     background = "white")
-lines(states, col = "grey")
+     main = "mean Annual Precipitation (1970-2000)",
+     background = "grey")
+lines(states, col = "white")
 
 plot(elevat, col=map.pal("viridis", 100),
      main = "mean Elevation",
-     background = "white")
-lines(states, col = "grey")
+     background = "grey")
+lines(states, col = "white")
 
 plot(Nfertilizer, col=map.pal("viridis", 100),
-     main = "mean N fertilizer use",
-     background = "white")
-lines(states, col = "grey")
+     main = "mean N fertilizer (1994-2001)",
+     background = "grey")
+lines(states, col = "white")
 
 # -----------
 
 plot(grass, col=map.pal("viridis", 100),
-     main = "sqrt(grassland area)",
-     background = "white")
-lines(states, col = "grey")
+     main = "sqrt(grassland area in 2020)",
+     background = "grey")
+lines(states, col = "white")
 
 plot(shrubs, col=map.pal("viridis", 100),
-     main = "sqrt (shrubland area)",
-     background = "white")
-lines(states, col = "grey")
+     main = "sqrt (shrubland area in 2020)",
+     background = "grey")
+lines(states, col = "white")
 
 plot(trees, col=map.pal("viridis", 100),
-     main = "sqrt (tree-covered area)",
-     background = "white")
-lines(states, col = "grey")
+     main = "sqrt (tree-covered area in 2020)",
+     background = "grey")
+lines(states, col = "white")
 
 plot(built, col=map.pal("viridis", 100),
-     main = "sqrt (built-up area)",
-     background = "white")
-lines(states, col = "grey")
+     main = "sqrt (built-up area in 2020)",
+     background = "grey")
+lines(states, col = "white")
 
 plot(wetland, col=map.pal("viridis", 100),
-     main = "sqrt (wetland area)",
-     background = "white")
-lines(states, col = "grey")
+     main = "sqrt (wetland area in 2020)",
+     background = "grey")
+lines(states, col = "white")
 
 plot(water, col=map.pal("viridis", 100),
-     main = "sqrt (water area)",
-     background = "white")
-lines(states, col = "grey")
+     main = "sqrt (water area in 2020)",
+     background = "grey")
+lines(states, col = "white")
 
 dev.off()
 ```
@@ -288,9 +288,11 @@ routes$delta_r_gam <- gam(delta_r ~ s(lon, lat, bs = "gp", k = 100, m = 2),
 # prepare data.frame for analyses
 data.frame(names(routes))
 dat <- as.data.frame(routes[, 24:ncol(routes)])
+
+# remove variables that we don't want in the pairplot
 dat <- select(dat, -c("geometry")) # remove the last "geometry" column
-
-
+dat <- select(dat, -c("crops19", "footprint09")) 
+dat <- select(dat, -c("lat", "lon")) # remove spatial coordinates 
 ```
 
 # Exploring patterns and correlations
@@ -329,7 +331,7 @@ rf.predictors <- c("grass",
                    "Nfertilizer",
                    "footprint93",
                    "NDVI82to12",
-                   "temp91to20",
+                   "temp87to21",
                    "footprint93to09",
                    "crops03to19")
 ```
@@ -404,8 +406,7 @@ png("rf_importances.png",
 ggplot(dat = res.rf, aes(x = importances, y = predictors)) +
   geom_col() +
   facet_grid(.~response) +
-  xlab("Relative importance")+
-  theme_bw()
+  xlab("Relative importance")
 
 dev.off()
 ```
