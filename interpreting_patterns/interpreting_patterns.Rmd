@@ -1,5 +1,5 @@
 ---
-title: "Co-incedence of acceleration patterns with environmental and human-related
+title: "Co-incidence of acceleration patterns with environmental and human-related
   variables"
 author: "Petr Keil"
 date: "2024-12-06"
@@ -406,7 +406,8 @@ png("rf_importances.png",
 ggplot(dat = res.rf, aes(x = importances, y = predictors)) +
   geom_col() +
   facet_grid(.~response) +
-  xlab("Relative importance")
+  xlab("Relative importance")+
+  theme_bw()
 
 dev.off()
 ```

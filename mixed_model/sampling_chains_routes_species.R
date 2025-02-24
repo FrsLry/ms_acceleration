@@ -2,11 +2,11 @@
 ## in order to propagate the uncertainties
 library(dplyr)
 
-## First, let's filter the models for which the average Rhat of the 106419 parameters is below 1.5
+## First, let's filter the models for which all Rhats < 1.1
 ## Analyse summaries
-file.list <-list.files(path = "post_analyses/summary_models/", full.names = T)
+file.list <-list.files(path = "summary_models/", full.names = T)
 ## Get the species names
-species <- gsub("^summary_|\\.rds$","",list.files(path = "post_analyses/summary_models/"))
+species <- gsub("^summary_|\\.rds$","",list.files(path = "summary_models/"))
 
 for(i in 1:length(file.list)){
   assign(species[i],
@@ -14,22 +14,22 @@ for(i in 1:length(file.list)){
   # print(i)
 }
 
-## Let's check the Rhats
+## Filter species that have all parameters Rhat < 1.1
 rhats <- data.frame(species = as.character(), param = as.character(), Rhat = as.numeric())
 for(sp in species){
   d <- get(sp)
   rhats <- rbind(rhats,
-                 c(sp, "avg_rhat", mean(d$Rhat, na.rm = T)))
+                 data.frame(sp, rownames(d[1:20,]), d[1:20,"Rhat"]))
   # print(sp)
 }
 colnames(rhats) <- c("species", "param", "rhat")
 rhats$rhat <- as.numeric(rhats$rhat)
 
-### Take off the species with high values of rhats ####
+### Take off the species with at least 1 Rhat > 1.1
 ok_sp <-
-  rhats %>% filter(!grepl("mean.", .$param)) %>%
+  rhats %>%
   group_by(species) %>%
-  filter(all(rhat <= 1.1)) %>%
+  filter(all(rhat <= 1.1, na.rm = T)) %>%
   distinct(species) %>% pull()
 
 ## Cleaning
@@ -58,7 +58,6 @@ mean_sd_g_sp <- data.frame(species = as.character(), year = as.numeric(), mean_g
 mean_sd_r_sp <- data.frame(species = as.character(), year = as.numeric(), mean_r = as.numeric(), sd_r = as.numeric())
 mean_sd_l_sp <- data.frame(species = as.character(), year = as.numeric(), mean_l = as.numeric(), sd_l = as.numeric())
 
-
 ## Iterate over each species
 for(file in files){
 
@@ -68,14 +67,17 @@ for(file in files){
   ## Load MCMC chains
   sp <- readRDS(file)
 
+  ## Number of samples in the original MCMC chains
+  it = dim(sp[[1]])[1]
+
   ## First index is the chain (1:3), e.g. sp[[1]]
   ## Second index: sp[[1]][chain_iteration,parameter*route*year]
 
   # Create the arrays that will take the dataset with dimensions 1033 x 35 x 2500 x 3 being route x year x iteration x chain
-  N_final <- array(NA, dim = c(1033, 35, 2500, 3))
-  R_final <- array(NA, dim = c(1033, 34, 2500, 3))
-  S_final <- array(NA, dim = c(1033, 34, 2500, 3))
-  L_final <- array(NA, dim = c(1033, 34, 2500, 3))
+  N_final <- array(NA, dim = c(1033, 35, it, 3))
+  R_final <- array(NA, dim = c(1033, 34, it, 3))
+  S_final <- array(NA, dim = c(1033, 34, it, 3))
+  L_final <- array(NA, dim = c(1033, 34, it, 3))
 
   ## Loop over each chain
   for(chain in 1:3){
@@ -89,9 +91,9 @@ for(file in files){
     S <- sp[[chain]][,dimnames(sp[[chain]])[[2]][grepl("^S", dimnames(sp[[chain]])[[2]])]]
 
     ## Reshaping N, R, S into [route,year,sample]
-    N <- array(t(N), dim = c(1033, 35, 2500))
-    R <- array(t(R), dim = c(1033, 34, 2500))
-    S <- array(t(S), dim = c(1033, 34, 2500))
+    N <- array(t(N), dim = c(1033, 35, it))
+    R <- array(t(R), dim = c(1033, 34, it))
+    S <- array(t(S), dim = c(1033, 34, it))
 
     ## Insert in the final dataset
     N_final[,,,chain] <- N
@@ -107,7 +109,7 @@ for(file in files){
   # Pick the chain randomly
   chain_s <- sample(1:3, s, replace = T)
   ## Pick the iteration randomly
-  it_s <- sample(1:2500, s)
+  it_s <- sample(1:it, s)
 
   ## For N
   N_sampled <- array(NA, dim = c(1033, 35, s))
@@ -222,8 +224,8 @@ saveRDS(mean_sd_N_sp, "mixed_model/save_samples/mean_sd_N_sp.rds")
 saveRDS(mean_sd_R_sp, "mixed_model/save_samples/mean_sd_R_sp.rds")
 saveRDS(mean_sd_L_sp, "mixed_model/save_samples/mean_sd_L_sp.rds")
 saveRDS(mean_sd_g_sp, "mixed_model/save_samples/mean_sd_g_sp.rds")
-saveRDS(mean_sd_r_sp, "mixed_model/save_samples/mean_sd_r_sp.rds")
-saveRDS(mean_sd_l_sp, "mixed_model/save_samples/mean_sd_l_sp.rds")
+saveRDS(mean_sd_r_sp, "mixed_model/save_samples/mean_sd_rr_sp.rds")
+saveRDS(mean_sd_l_sp, "mixed_model/save_samples/mean_sd_lr_sp.rds")
 
 
 ## Compute rates g,r,l of the overall abundance at each route

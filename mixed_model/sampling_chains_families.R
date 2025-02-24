@@ -2,11 +2,11 @@
 ## in order to propagate the uncertainties at the family level
 library(dplyr)
 library(tidyr)
-## First, let's filter the models for which the average Rhat of the 106419 parameters is below 1.5
+## First, let's filter the models for which all Rhats < 1.1
 ## Analyse summaries
-file.list <-list.files(path = "post_analyses/summary_models/", full.names = T)
+file.list <-list.files(path = "summary_models/", full.names = T)
 ## Get the species names
-species <- gsub("^summary_|\\.rds$","",list.files(path = "post_analyses/summary_models/"))
+species <- gsub("^summary_|\\.rds$","",list.files(path = "summary_models/"))
 
 for(i in 1:length(file.list)){
   assign(species[i],
@@ -19,17 +19,17 @@ rhats <- data.frame(species = as.character(), param = as.character(), Rhat = as.
 for(sp in species){
   d <- get(sp)
   rhats <- rbind(rhats,
-                 c(sp, "avg_rhat", median(d$Rhat, na.rm = T)))
+                 data.frame(sp, rownames(d[1:20,]), d[1:20,"Rhat"]))
   # print(sp)
 }
 colnames(rhats) <- c("species", "param", "rhat")
 rhats$rhat <- as.numeric(rhats$rhat)
 
-### Take off the species with high values of rhats ####
+### Take off the species with at least 1 Rhat > 1.1
 ok_sp <-
   rhats %>%
   group_by(species) %>%
-  filter(all(rhat <= 1.1)) %>%
+  filter(all(rhat <= 1.1, na.rm = T)) %>%
   distinct(species) %>% pull()
 
 ## Cleaning
@@ -44,7 +44,7 @@ files <- list.files("model_output/", full.names = T)
 files <- files[gsub("^model_output/|\\.rds$","",files) %in% ok_sp]
 
 ## Create the lists of each family ##########
-family <- readr::read_csv("data/original_data/phylo.csv")
+family <- readr::read_csv("data/phylo.csv")
 hab <- readRDS("data/selected_species.rds")
 
 family <- family %>%
@@ -53,7 +53,7 @@ family <- family %>%
   distinct() %>%
   drop_na()
 
-## Filter the species with good Rhat
+## Filter the species with Rhat < 1.1
 family = family[family$English_Common_Name %in% ok_sp,]
 
 ## Number of samples
@@ -90,14 +90,17 @@ for(fam in unique(family$Family)){
 
     sp <- readRDS(files[grepl(species, files)])
 
+    ## Number of samples in the original MCMC chains
+    it = dim(sp[[1]])[1]
+
     ## First index is the chain (1:3), e.g. sp[[1]]
     ## Second index: sp[[1]][chain_iteration,parameter*route*year]
 
     # Create the arrays that will take the dataset with dimensions 1033 x 35 x 2500 x 3 being route x year x iteration x chain
-    N_final <- array(NA, dim = c(1033, 35, 2500, 3))
-    R_final <- array(NA, dim = c(1033, 34, 2500, 3))
-    S_final <- array(NA, dim = c(1033, 34, 2500, 3))
-    L_final <- array(NA, dim = c(1033, 34, 2500, 3))
+    N_final <- array(NA, dim = c(1033, 35, it, 3))
+    R_final <- array(NA, dim = c(1033, 34, it, 3))
+    S_final <- array(NA, dim = c(1033, 34, it, 3))
+    L_final <- array(NA, dim = c(1033, 34, it, 3))
 
     ## Loop over each chain
     for(chain in 1:3){
@@ -111,9 +114,9 @@ for(fam in unique(family$Family)){
       S <- sp[[chain]][,dimnames(sp[[chain]])[[2]][grepl("^S", dimnames(sp[[chain]])[[2]])]]
 
       ## Reshaping N, R, S into [route,year,sample]
-      N <- array(t(N), dim = c(1033, 35, 2500))
-      R <- array(t(R), dim = c(1033, 34, 2500))
-      S <- array(t(S), dim = c(1033, 34, 2500))
+      N <- array(t(N), dim = c(1033, 35, it))
+      R <- array(t(R), dim = c(1033, 34, it))
+      S <- array(t(S), dim = c(1033, 34, it))
 
       ## Insert in the final dataset
       N_final[,,,chain] <- N
@@ -129,7 +132,7 @@ for(fam in unique(family$Family)){
     # Pick the chain randomly
     chain_s <- sample(1:3, s, replace = T)
     ## Pick the iteration randomly
-    it_s <- sample(1:2500, s)
+    it_s <- sample(1:it, s)
 
     ## For N
     N_sampled <- array(NA, dim = c(1033, 35, s))

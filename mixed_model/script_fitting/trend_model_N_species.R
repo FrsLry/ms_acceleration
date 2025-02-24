@@ -17,6 +17,9 @@ sd_N_sp <-
   pivot_wider(names_from = "year", values_from = "sd_N") %>%
   column_to_rownames("species")
 
+## For JAGS, put non zero value (but very small) of sd for time 1 for Eurasian-Collared Dove
+sd_N_sp[which(sd_N_sp == 0, arr.ind = T)] <- 1e-10
+
 ## JAGS data
 data_list <- list(N = as.matrix(mean_N_sp),
           sd = as.matrix(sd_N_sp),

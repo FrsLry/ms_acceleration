@@ -408,7 +408,7 @@ perspecies_N_output <- readRDS("mixed_model/outputs/perspecies_N_output.rds")
 perspecies_r_output <- readRDS("mixed_model/outputs/perspecies_r_output.rds")
 perspecies_l_output <- readRDS("mixed_model/outputs/perspecies_l_output.rds")
 
-## Get back the species names based of median Rhat < 1.1 #####
+## Get back the species names for which all parameters Rhat < 1.1 #####
 file.list <-list.files(path = "summary_models/", full.names = T)
 species <- gsub("^summary_|\\.rds$","",list.files(path = "summary_models/"))
 for(i in 1:length(file.list)){
@@ -420,21 +420,38 @@ rhats <- data.frame(species = as.character(), param = as.character(), Rhat = as.
 for(sp in species){
   d <- get(sp)
   rhats <- rbind(rhats,
-                 c(sp, "avg_rhat", median(d$Rhat, na.rm = T)))
+                 data.frame(sp, rownames(d[1:20,]), d[1:20,"Rhat"]))
+  # print(sp)
 }
 colnames(rhats) <- c("species", "param", "rhat")
 rhats$rhat <- as.numeric(rhats$rhat)
 
-## Filter the species with median Rhat <= 1.1
+### Take off the species with at least 1 Rhat > 1.1
 species <-
-  rhats %>% filter(!grepl("mean.", .$param)) %>%
+  rhats %>%
   group_by(species) %>%
-  filter(all(rhat <= 1.1)) %>%
+  filter(all(rhat <= 1.1, na.rm = T)) %>%
   distinct(species) %>% pull()
 
 ## Remove the per species models
 rm(list = ls()[ls() %in% gsub("^summary_|\\.rds$","",list.files(path = "summary_models/"))])
 ################
+
+## Histogram of Rhat distributions for all parameters for the 261 selected species ###
+pdf("mixed_model/figures/rhats.pdf",
+    width = 8.27, height = 5.83)
+rhats %>%
+  group_by(species) %>%
+  filter(all(rhat <= 1.1, na.rm = T)) %>%
+  mutate(param = stringr::str_replace(param, "mean", "alpha"),
+         param = stringr::str_replace(param, "lam", "lambda")) %>%
+  ggplot() +
+  geom_histogram(aes(rhat), binwidth = 0.01) +
+  facet_wrap(vars(param), scales = "fixed")+
+  geom_vline(xintercept = 1.1, linetype = "dashed", color = "red")+
+  scale_x_continuous(breaks = seq(1, 1.1, by = 0.05)) +
+  theme_bw()
+dev.off()
 
 species_data <- data.frame(species = as.character(),
                            ab_trend = as.numeric(),

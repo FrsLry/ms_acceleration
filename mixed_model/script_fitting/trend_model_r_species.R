@@ -6,7 +6,7 @@ library(tibble)
 ## Load the data
 sp_r <- readRDS("mixed_model/save_samples/mean_sd_rr_sp.rds")
 
-## For the very rare case where values are missing (only 1 year for 2 species)
+## For the very unique case where a value is missing (only 1 year for 1 Eurasian-Collared Dove)
 ## Use the mean over the time series
 for(sp in unique(sp_r$species)){
   if(all(!is.na(sp_r[sp_r$species == sp,]$mean_R))){

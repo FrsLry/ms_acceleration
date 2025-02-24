@@ -72,10 +72,10 @@ model {
   tau.temp <- pow(sd.temp, -2)
   sd.temp ~ dunif(0, 100)
 
-  # Derived quantities (NOT USED)
-  # mean.phi <- ilogit(alpha.phi)
-  # mean.gamma <- exp(alpha.gamma)
-  # mean.p <- ilogit(alpha.p)
-  # mean.lam <- exp(alpha.lambda)
+  # Save parameters
+  mean.phi <- ilogit(alpha.phi)
+  mean.gamma <- exp(alpha.gamma)
+  mean.p <- ilogit(alpha.p)
+  mean.lam <- exp(alpha.lambda)
 
 }

@@ -4,7 +4,7 @@ library(jagsUI)
 mean_gt0_overall <- readRDS("mixed_model/save_samples/mean_gt0_overall.rds")
 sd_gt0_overall <- readRDS("mixed_model/save_samples/sd_gt0_overall.rds")
 
-## For JAGS, put non zero values (but vey small) of sd for time 1
+## For JAGS, put non zero values (but very small) of sd for time 1
 sd_gt0_overall[,1] <- 1e-10
 
 ## JAGS data
