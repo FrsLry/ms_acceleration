@@ -13,13 +13,16 @@ library(plotrix)
 dat.all <- readRDS("data/jags_data_par.rds")
 
 # read list of summary files for all species
-splist <- list.files(path = "summary_models")
+filelist <- list.files(path = "summary_models")
 
+# example species
+filename <- filelist[10]
+filename
 
 # ------------------------------------------------------------------------------
 
 # function that plots a polynomial regression of two temporal matrices
-trend.plotter <- function(mat)
+trend.plotter <- function(mat, poly.deg = 3, family = "gaussian", reg.col=reg.col)
 {
   # matrix for time values
   year <- mat
@@ -27,31 +30,35 @@ trend.plotter <- function(mat)
   # fit a polynomial
   dat <- na.omit(data.frame(mat = as.vector(mat), year = as.vector(year)))
 
-  mod <- lm(mat ~ poly(year,3), data = dat)
+  mod <- glm(mat ~ poly(year, poly.deg), data = dat, family = family)
   # make predictions
   prds <- predict(mod, newdata=data.frame(year = min(year):max(year)))
   # plot the line
-  lines(1:ncol(mat), prds, col = "blue", lwd=2)
+  lines(1:ncol(mat), prds, col = reg.col, lwd=2)
 }
+
+
+
+
 
 
 # ------------------------------------------------------------------------------
 
 
 # main loop through all species
-for(species in splist)
+for(filename in filelist)
 {
   # read the summary file
-  summ <- readRDS(paste('summary_models/', species, sep=''))
+  summ <- readRDS(paste('summary_models/', filename, sep=''))
   mean.rhat <- mean(summ$Rhat[1:20])
 
   # clean species name for nice file output
-  species <- gsub(".rds", replacement = "", x = species)
+  species <- gsub(".rds", replacement = "", x = filename)
   species <- gsub("summary_", replacement = "", x = species)
 
   # extract matrix of C from the data
   spec <- dat.all[species][[species]]
-  Cmat <- spec$C[,-1]
+  Cmat <- spec$C#[,-1]
 
   # extract S, N and R from the summary data frame
   S <- summ[grepl("S", row.names(summ)),]
@@ -67,36 +74,39 @@ for(species in splist)
   phi975 <- summ[grepl("phi", row.names(summ)),]$"97.5%"
 
   # estimated survival S (number of surviving individuals)
-  Smat <- matrix( ncol = 34, nrow = 1033, byrow=TRUE)
-  Smat[] <- S$mean
+  Smat <- matrix(S$mean, ncol = 34, nrow = 1033, byrow=FALSE)
 
   # recruitment R (number of recruited individuals)
-  Rmat <- matrix( ncol = 34, nrow = 1033, byrow=TRUE)
-  Rmat[] <- R$mean
-
-  # artificial recruitment as a random draw from poission
-  RmatArti <- Rmat
-  RmatArti[] <- rpois(n=ncol(Rmat)*nrow(Rmat), lambda=gamma)
+  Rmat <- matrix(R$mean, ncol = 34, nrow = 1033, byrow=FALSE)
 
   # abundance N
-  Nmat <- matrix( ncol = 35, nrow = 1033, byrow=TRUE)
-  Nmat[] <- N$mean
-  Nmat <- Nmat[,-1]
+  Nmat <- matrix(N$mean, ncol = 35, nrow = 1033, byrow=FALSE)
 
-  # proportion of surviving individuals
-  SdivNmat <- Smat/Nmat
+  # check if they the conversion to matrix went well
+  Smat[1:5, 1:5]
+  S[1:5,]
 
-  # proportion of recruited individuals
-  RdivNmat <- Rmat[,-ncol(Rmat)] / Nmat[,-1]
-  RdivNmat[is.infinite(RdivNmat)] <- NA
-  RdivNmat[is.nan(RdivNmat)] <- NA
+  # index of time series with min and max mean N values
+  # (this will be helpful to identify how S and R match N)
+  max.ind<-which( rowMeans(Nmat) %in% max(rowMeans(Nmat)) )
+  min.ind<-which( rowMeans(Nmat) %in% min(rowMeans(Nmat)) )
+
+
+  # parameters of the graphical output
+  max.col <- "#4daf4a" # marking time series with max mean abundance
+  min.col <- "#377eb8" # marking time series with min mean abundance
+  par.col <- "#e41a1c" # marking estimated parameters of the model (phi, gamma)
+  reg.col <- "#ff7f00" # marking the polynomial regression line
+  alpha <- 0.7 # transparency of points or lines
+
+
 
   # ----------------------------------
   # Graphical output
   png(filename=paste("per_species_curves/", species, ".png", sep=""),
-      width=1800, height=820, res=120)
+      width=1500, height=1500, res=120)
 
-    par(mfrow=c(2,5))
+    par(mfrow=c(4,4))
 
     # plot the parameters as a table in the plot
     sm <- summ[c(1:20),c("mean", "sd", "2.5%", "97.5%", "Rhat")]
@@ -106,85 +116,143 @@ for(species in splist)
                      q2.5 = round(sm$"2.5%",2),
                      q97.5 = round(sm$"97.5%",2),
                      Rhat = sm$Rhat)
-    par(mar = c(5,0.6,0,0))
-    plot(c(0, 0.1), c(0, 1), ann = F, type = 'n', xaxt = 'n', yaxt = 'n',
+    par(mar = c(3,0.6,0,0))
+    plot(c(0, 0.15), c(0, 1), ann = F, type = 'n', xaxt = 'n', yaxt = 'n',
          frame = F, main = species)
     plotrix::addtable2plot(0.01, 0, sm, xjust = 0, bty = 'o',
                            cex=0.8, vlines=T, xpad=0.2)
 
-
     # reset figure margins
     par(mai=c(0.7,0.6, 0.3, 0.1))
 
+    # estimated abundance N
+    matplot(t(Nmat), col=gray(0.3, alpha = alpha),
+            type = "l",lty = 1, ylab = "Nt", xlab="t",
+            main = "Est. N")
+    lines(Nmat[max.ind,], col = max.col, lwd=2)
+    lines(Nmat[min.ind,], col = min.col, lwd=2)
+    trend.plotter(Nmat, reg.col=reg.col)
+
+
     # raw observed counts in the data C
-    matplot(t(Cmat), col=gray(0.3, alpha = 0.5),
-            type = "l",lty = 1, ylab = "Ct", xlab="year",
+    matplot(t(Cmat), col=gray(0.3, alpha = alpha),
+            type = "l",lty = 1, ylab = "Ct", xlab="t",
             main = "Obs. counts",
             ylim=c(0, max(Nmat)))
-    trend.plotter(Cmat)
-
-
-    # estimated abundance N
-    matplot(t(Nmat), col=gray(0.3, alpha = 0.5),
-            type = "l",lty = 1, ylab = "Nt", xlab="year",
-            main = "Est. N")
-    trend.plotter(Nmat)
-
+    trend.plotter(Cmat, reg.col=reg.col)
 
     # plot N against C
-    plot(Cmat, Nmat, col=gray(0.3, alpha = 0.5),
+    plot(Cmat, Nmat, col=gray(0.3, alpha = alpha),
          xlab = "Ct", ylab = "Nt", main = "Est. N vs obs. counts")
     abline(a=0, b=1)
 
-
-    # N against R/N
-    plot(Nmat[,-1], RdivNmat, col=gray(0.3, alpha = 0.5),
-         xlab = "Nt+1", ylab = "Rt / Nt+1",
-         main = "N vs prop. recruited")
-
-    # artificial recruitment
-    matplot(t(RmatArti), col=gray(0.3, alpha = 0.5),
-            type = "l",lty = 1, ylab = "Rt", xlab="year",
-            ylim=c(0, max(Rmat)),
-            main = "Simul. Poisson recruitment")
-    trend.plotter(RmatArti)
-
-
-    # recruitment R (red line is gamma)
-    matplot(t(Rmat), col=gray(0.3, alpha = 0.5),
-            type = "l",lty = 1, ylab = "Rt", xlab="year",
-            main = "Recruitment")
-    abline(h = gamma, lwd= 2, col="red")
-    abline(h = gamma25, lwd= 1, col="red", lty=2)
-    abline(h = gamma975, lwd= 1, col="red", lty=2)
-    trend.plotter(Rmat)
-
+    # survival S vs N
+    plot(Nmat[,-ncol(Nmat)], Smat, col=gray(0.3, alpha = 0.5),
+         xlab = "Nt", ylab = "St+1",
+         main = "Survival vs N")
+    abline(a=0, b=1)
 
     # survival S
-    matplot(t(Smat), col=gray(0.3, alpha = 0.5),
-            type = "l",lty = 1, ylab = "St", xlab="year",
+    matplot(t(Smat), col=gray(0.3, alpha = alpha),
+            type = "l",lty = 1, ylab = "St+1", xlab="t+1",
             main = "Survival", ylim=c(0, max(Nmat)))
-    trend.plotter(Smat)
+    lines(Smat[max.ind,], col = max.col, lwd=2)
+    lines(Smat[min.ind,], col = min.col, lwd=2)
+    trend.plotter(Smat, reg.col=reg.col)
 
-
-
-    # proportion of R in N
-    matplot(t(RdivNmat), col=gray(0.3, alpha = 0.5),
-            type = "l",lty = 1, ylab = "Rt / Nt+1", xlab="year",
-            main = "Prop. recruited", ylim=c(0,1))
-    trend.plotter(RdivNmat)
-
-
-    # proportion of surviving individuals (red line is phi)
+    # survival rate (red line is phi)
+    SdivNmat <- Smat/Nmat[,-ncol(Nmat)]
     matplot(t(SdivNmat), col=gray(0.3, alpha = 0.5), ylim = c(0,1),
-            type = "l",lty = 1, ylab = "St / Nt", xlab="year",
-            main = "Prop. survived")
-    abline(h = phi, lwd= 2, col="red")
-    abline(h = phi25, lwd= 1, col="red", lty=2)
-    abline(h = phi975, lwd= 1, col="red", lty=2)
-    trend.plotter(SdivNmat)
+            type = "l",lty = 1, ylab = "St+1 / Nt", xlab="t+1",
+            main = "Survival rate")
+    lines(SdivNmat[max.ind,], col = max.col, lwd=2)
+    lines(SdivNmat[min.ind,], col = min.col, lwd=2)
+    abline(h = phi, lwd= 2, col=par.col)
+    abline(h = phi25, lwd= 1, col=par.col, lty=2)
+    abline(h = phi975, lwd= 1, col=par.col, lty=2)
+    trend.plotter(SdivNmat, reg.col=reg.col)
 
-   dev.off()
+    # loss rate
+    Lmat <- Nmat[,-ncol(Nmat)] - Smat
+    LdivNmat <- Lmat/Nmat[,-ncol(Nmat)]
+    matplot(t(LdivNmat), col=gray(0.3, alpha = alpha), ylim = c(0,1),
+            type = "l",lty = 1, ylab = "Lt+1 / Nt", xlab="t+1",
+            main = "Loss rate")
+    lines(LdivNmat[max.ind,], col = max.col, lwd=2)
+    lines(LdivNmat[min.ind,], col = min.col, lwd=2)
+    trend.plotter(LdivNmat, reg.col=reg.col)
+
+    # artificial recruitment as a random draw from poission
+    RmatArti <- Rmat
+    RmatArti[] <- rpois(n=ncol(Rmat)*nrow(Rmat), lambda=gamma)
+    matplot(t(RmatArti), col=gray(0.3, alpha = alpha),
+            type = "l",lty = 1, ylab = "Rt+1", xlab="t+1",
+            ylim=c(0, max(Rmat)),
+            main = "Simul. Poisson recruitment")
+    trend.plotter(RmatArti, reg.col=reg.col)
+
+    # recruitment R
+    matplot(t(Rmat), col=gray(0.3, alpha = alpha),
+            type = "l",lty = 1, ylab = "Rt+1", xlab="t+1",
+            main = "Recruitment")
+    lines(Rmat[max.ind,], col = max.col, lwd=2)
+    lines(Rmat[min.ind,], col = min.col, lwd=2)
+    abline(h = gamma, lwd= 2, col=par.col)
+    abline(h = gamma25, lwd= 1, col=par.col, lty=2)
+    abline(h = gamma975, lwd= 1, col=par.col, lty=2)
+    trend.plotter(Rmat, reg.col=reg.col)
+
+    # recruitment rate
+    RdivNmat <- Rmat/Nmat[,-ncol(Nmat)]
+    RdivNmat[is.infinite(RdivNmat)] <- NA
+    RdivNmat[is.nan(RdivNmat)] <- NA
+    matplot(t(RdivNmat), col=gray(0.3, alpha = alpha),
+            type = "l",lty = 1, ylab = "Rt+1 / Nt", xlab="t+1",
+            main = "Recrutiment rate")
+    lines(RdivNmat[max.ind,], col = max.col, lwd=2)
+    lines(RdivNmat[min.ind,], col = min.col, lwd=2)
+    trend.plotter(RdivNmat, reg.col=reg.col)
+
+    # N against R/N
+    plot(Nmat[,-ncol(Nmat)], RdivNmat, col=gray(0.3, alpha = alpha),
+         xlab = "Nt", ylab = "Rt+1 / Nt",
+         main = "N vs recruitment rate")
+
+    # ================ AGGREGATION ACCROSS TIME SERIES
+    Ctot <- colSums(Cmat, na.rm = TRUE)
+    Ntot <- colSums(Nmat, na.rm = TRUE)
+    Stot <- colSums(Smat, na.rm = TRUE)
+    Rtot <- colSums(Rmat, na.rm = TRUE)
+
+    # all the count-based variables
+    plot(1:35, Ntot, type = "l", lwd = 2, ylim = c(0, max(Ntot)),
+         ylab = "Number of individuals", xlab="t",
+         main = "Total sums of count variables")
+    lines(1:35, Ctot, lwd = 2, col = "grey")
+    lines(2:35, Stot, lwd = 2, col = "green")
+    lines(2:35, Rtot, lwd = 2, col = "blue")
+    legend("topright", legend = c("Nt", "Ct", "St", "Rt"),
+           col = c("black","grey","green","blue"),
+           lwd = c(2,2,2,2),
+           lty = c(1,1,1,1))
+
+
+    # total recruitment rate
+    plot(2:35, Rtot/Ntot[-length(Ntot)], type = "l", lwd = 2,
+         ylab = "Rt+1 / Nt", xlab = "t+1", col = "blue",
+         main = "Total recruitment rate")
+
+    # total survival rate
+    plot(2:35, Stot/Ntot[-length(Ntot)], type = "l", lwd = 2,
+         ylab = "St+1 / Nt", xlab = "t+1", col = "green",
+         main = "Total survival rate")
+
+    # total loss rate
+    plot(2:35, (Ntot[-length(Ntot)]-Stot)/Ntot[-length(Ntot)], type = "l", lwd = 2,
+         ylab = "Lt+1 / Nt", xlab = "t+1", col = "red",
+         main = "Total loss rate")
+
+  dev.off()
 }
 
 
