@@ -413,6 +413,136 @@ dev.off()
 ```
 ![importances](rf_importances.png)
 
+# Partial dependence plots
+
+```{r}
+library(pdp)
+```
+
+## Growth rate change (delta g)
+
+```{r}
+pp <- data.frame(x = as.numeric(), y = as.numeric(), covariate = as.character())
+for(cov in names(rf.g$forest$xlevels)){
+  
+  pp <- rbind(pp, partial(rf.g, cov) %>% mutate(covariate = cov) %>% rename(x = cov))
+  
+}
+
+pdf("pdp_g.pdf", width = 8.27, height = 5.83)
+
+ggplot(pp)+
+  geom_line(aes(x, yhat))+
+  facet_wrap(vars(covariate), scales = "free_x")+
+  ylab("Growth rate change (delta g)")+
+  theme_bw()
+
+dev.off()
+```
+
+```{r, echo=FALSE}
+ggplot(pp)+
+  geom_line(aes(x, yhat))+
+  facet_wrap(vars(covariate), scales = "free_x")+
+  ylab("Growth rate change (delta g)")+
+  theme_bw()
+```
+
+
+
+## Abundance change (delta N)
+
+```{r}
+pp <- data.frame(x = as.numeric(), y = as.numeric(), covariate = as.character())
+for(cov in names(rf.N$forest$xlevels)){
+  
+  pp <- rbind(pp, partial(rf.N, cov) %>% mutate(covariate = cov) %>% rename(x = cov))
+  
+}
+
+pdf("pdp_N.pdf", width = 8.27, height = 5.83)
+
+ggplot(pp)+
+  geom_line(aes(x, yhat))+
+  facet_wrap(vars(covariate), scales = "free_x")+
+  ylab("Abundance change (delta N)")+
+  theme_bw()
+
+dev.off()
+```
+
+```{r, echo=FALSE}
+ggplot(pp)+
+  geom_line(aes(x, yhat))+
+  facet_wrap(vars(covariate), scales = "free_x")+
+  ylab("Abundance change (delta N)")+
+  theme_bw()
+```
+
+
+
+## Recruitment change (delta r)
+
+```{r}
+pp <- data.frame(x = as.numeric(), y = as.numeric(), covariate = as.character())
+for(cov in names(rf.r$forest$xlevels)){
+  
+  pp <- rbind(pp, partial(rf.r, cov) %>% mutate(covariate = cov) %>% rename(x = cov))
+  
+}
+
+pdf("pdp_r.pdf", width = 8.27, height = 5.83)
+
+ggplot(pp)+
+  geom_line(aes(x, yhat))+
+  facet_wrap(vars(covariate), scales = "free_x")+
+  ylab("Recruitment change (delta r)")+
+  theme_bw()
+
+dev.off()
+```
+
+
+```{r, echo=FALSE}
+ggplot(pp)+
+  geom_line(aes(x, yhat))+
+  facet_wrap(vars(covariate), scales = "free_x")+
+  ylab("Recruitment change (delta r)")+
+  theme_bw()
+```
+
+
+## Loss change (delta l)
+
+```{r}
+pp <- data.frame(x = as.numeric(), y = as.numeric(), covariate = as.character())
+for(cov in names(rf.l$forest$xlevels)){
+  
+  pp <- rbind(pp, partial(rf.l, cov) %>% mutate(covariate = cov) %>% rename(x = cov))
+  
+}
+
+pdf("pdp_l.pdf", width = 8.27, height = 5.83)
+
+ggplot(pp)+
+  geom_line(aes(x, yhat))+
+  facet_wrap(vars(covariate), scales = "free_x")+
+  ylab("Loss change (delta l)")+
+  theme_bw()
+
+dev.off()
+
+```
+
+```{r, echo=FALSE}
+ggplot(pp)+
+  geom_line(aes(x, yhat))+
+  facet_wrap(vars(covariate), scales = "free_x")+
+  ylab("Loss change (delta l)")+
+  theme_bw()
+```
+
+
 # Session info
 
 ```{r}
