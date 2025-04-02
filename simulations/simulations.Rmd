@@ -186,8 +186,9 @@ inits <- function(){list( lambda = runif(1, 6, 16), phi = runif(1),
 params <- c("lambda", "phi", "gamma", "p", "S", "R")
 
 # MCMC settings that we used in our analysis (you can modify them to make the fitting shorter)
-na <- 1000 ; ni <- 100000 ; nt <- 10 ; nb <- 75000 ; nc <- 3
+na <- 1000 ; ni <- 50000 ; nt <- 10 ; nb <- 7500 ; nc <- 3
 
+system.time(
 # Call JAGS
 out1 <- jags(data = bdata, 
              inits = inits, 
@@ -199,6 +200,7 @@ out1 <- jags(data = bdata,
              n.iter = ni, 
              n.burnin = nb,
              parallel = TRUE)
+)
 
 # Check convergence of the parameters
 traceplot(out1, layout=c(1,4), parameters = c("lambda", "phi", "gamma", "p"))

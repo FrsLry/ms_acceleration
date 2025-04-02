@@ -50,7 +50,7 @@ aggregate.uncertainty <- function(mean.mat, sd.mat, Nrep = 500)
 
   for(i in 1:Nrep)
   {
-    smp.mat <- matrix(rnorm(N, mean.mat, sd.mat), # take a draw from the normal
+    smp.mat <- matrix(rnorm(N, as.vector(mean.mat), as.vector(sd.mat)), # take a draw from the normal
                       nrow = nrow(mean.mat),
                       ncol = ncol(mean.mat),
                       byrow = FALSE)
@@ -99,7 +99,7 @@ for(filename in filelist)
   # estimated survival S (number of surviving individuals)
   Smat.mean <- matrix(S$mean, ncol = 34, nrow = 1033, byrow=FALSE)
   Smat <- matrix(S$"50%", ncol = 34, nrow = 1033, byrow=FALSE)
-  Smat.sd <- matrix(S$mean, ncol = 34, nrow = 1033, byrow=FALSE)
+  Smat.sd <- matrix(S$sd, ncol = 34, nrow = 1033, byrow=FALSE)
 
   # recruitment R (number of recruited individuals)
   Rmat.mean <- matrix(R$mean, ncol = 34, nrow = 1033, byrow=FALSE)
@@ -269,11 +269,13 @@ for(filename in filelist)
       lines(1:35, Nunc[2,], lwd = 1, lty = 1)
 
       lines(1:35, Ctot, lwd = 2, lty = 1, col = "grey")
+
       # total survival
       lines(2:35, Stot, lwd = 2, lty = 3)
       Sunc <- aggregate.uncertainty(Smat, Smat.sd, Nrep = 500)
       lines(2:35, Sunc[1,], lwd = 1, lty = 3)
       lines(2:35, Sunc[2,], lwd = 1, lty = 3)
+
       # total recruitment
       lines(2:35, Rtot, lwd = 2, lty = 4)
       Runc <- aggregate.uncertainty(Rmat, Rmat.sd, Nrep = 500)
