@@ -1,4 +1,4 @@
-# Hotspots of acceleration and demographic processes behind decline of North American birds
+# Acceleration hotspots of North American birds’ decline are associated with agriculture
 
 ## Authors
 
