@@ -27,7 +27,9 @@ library(tidyverse)
 library(randomForest)
 library(psych)
 library(forcats)
-
+library(caret)
+library(caretEnsemble)
+library(pdp)
 rm(list = ls()) # clear the environment
 ```
 
@@ -82,7 +84,7 @@ routes$NPP <- terra::extract(NPP, routes, fun = mean)[,2]
 
 ```{r}
 temp <- terra::rast("rasters/temp.tif")
-routes$temp <- terra::extract(temp, routes, fun = mean)[,2]
+routes$temp <- terra::extract(temp, routes, fun = mean)[,2]/10
 
 precip <- terra::rast("rasters/precip.tif")
 routes$precip <- terra::extract(precip, routes, fun = mean)[,2]
@@ -270,19 +272,13 @@ names(coords) <- c("lon","lat")
 routes <- cbind(routes, coords)
 
 ## Add raw (not smoothed) values the dataset
-routes$delta_N <- overall_N_output$mean$beta1
-routes$delta_g <- overall_g_output$mean$beta1
-routes$delta_l <- overall_l_output$mean$beta1
-routes$delta_r <- overall_r_output$mean$beta1
+routes$delta_N <- as.numeric(overall_N_output$mean$beta1)
+routes$delta_g <- as.numeric(overall_g_output$mean$beta1)
 
 # fit the gam models
 routes$delta_N_gam <- gam(delta_N ~ s(lon, lat, bs = "gp", k = 100, m = 2),
                           data = routes)$fitted.values
 routes$delta_g_gam <- gam(delta_g ~ s(lon, lat, bs = "gp", k = 100, m = 2),
-                          data = routes)$fitted.values
-routes$delta_l_gam <- gam(delta_l ~ s(lon, lat, bs = "gp", k = 100, m = 2),
-                          data = routes)$fitted.values
-routes$delta_r_gam <- gam(delta_r ~ s(lon, lat, bs = "gp", k = 100, m = 2),
                           data = routes)$fitted.values
 
 # prepare data.frame for analyses
@@ -317,7 +313,7 @@ dev.off()
 
 ![pairs](all_pairs.png)
 
-# Random Forest analysis
+# Tree-based analysis
 
 ## Set predictors
 
@@ -338,80 +334,249 @@ rf.predictors <- c("grass",
 
 ## Growth rate change (delta g)
 
-```{r}
-rf.g <-randomForest(formula(paste("delta_g_gam ~ ", 
-                                  paste(rf.predictors, collapse=" + "))),
-                    data = na.omit(dat)) # NOTE THE NA OMIT!!
+```{r, message=FALSE, results='hide'}
+# First we split the dataset into training and validation datasets
+set.seed(333)
+traindata <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+## We use three tree-based algorithms in order to assess which one perform the best
+## Create the list of models
+model_list_deltag <-
+  caretList(
+    delta_g_gam ~ ., 
+    data = na.omit(dat[,c(rf.predictors,"delta_g_gam")]),
+    trControl = traindata,
+    metric = "RMSE",
+    tuneList = list(
+      rf =  caretModelSpec(method = "ranger", 
+                           importance = "permutation",
+                           tuneGrid = data.frame(mtry = ceiling((ncol(dat[,rf.predictors])-1)/3),
+                                                                    splitrule = "variance",
+                                                                    min.node.size = 5)),
+      gbm = caretModelSpec(method = "gbm",
+                           distribution = "gaussian",
+                           # keep.data = TRUE,
+                           tuneGrid = data.frame(n.trees = 500,
+                                                 interaction.depth = 1,
+                                                 shrinkage = 0.1,
+                                                 n.minobsinnode = 5)),
+      xgboost = caretModelSpec(method = "xgbTree",
+                               tuneGrid = expand.grid(nrounds = 500,
+                                                     max_depth = 5,
+                                                     eta = 0.1,
+                                                     gamma = 0,
+                                                     colsample_bytree = 1,
+                                                     min_child_weight = 1,
+                                                     subsample = 1))
+    )
+  )
 
-rf.g.rsq <- rf.g$rsq[length(rf.g$rsq)] # explained variation
-rf.g
+saveRDS(model_list_deltag, "models/model_list_deltag.rds")
 ```
 
 ## Abundance change (delta N)
 
-```{r}
-rf.N <-randomForest(formula(paste("delta_N_gam ~ ", 
-                                  paste(rf.predictors, collapse=" + "))),
-                    data = na.omit(dat)) # NOTE THE NA OMIT!!
-rf.N.rsq <- rf.N$rsq[length(rf.N$rsq)] # explained variation
-rf.N
+```{r, message=FALSE, results='hide'}
+## Create the list of models
+model_list_deltaN <-
+  caretList(
+    delta_N_gam ~ ., 
+    data = na.omit(dat[,c(rf.predictors,"delta_N_gam")]),
+    trControl = traindata,
+    metric = "RMSE",
+    tuneList = list(
+      rf =  caretModelSpec(method = "ranger", 
+                           importance = "permutation",
+                           tuneGrid = data.frame(mtry = ceiling((ncol(dat[,rf.predictors])-1)/3),
+                                                                    splitrule = "variance",
+                                                                    min.node.size = 5)),
+      gbm = caretModelSpec(method = "gbm",
+                           distribution = "gaussian",
+                           # keep.data = TRUE,
+                           tuneGrid = data.frame(n.trees = 500,
+                                                 interaction.depth = 1,
+                                                 shrinkage = 0.1,
+                                                 n.minobsinnode = 5)),
+      xgboost = caretModelSpec(method = "xgbTree",
+                               tuneGrid = expand.grid(nrounds = 500,
+                                                     max_depth = 5,
+                                                     eta = 0.1,
+                                                     gamma = 0,
+                                                     colsample_bytree = 1,
+                                                     min_child_weight = 1,
+                                                     subsample = 1))
+    )
+  )
+
+saveRDS(model_list_deltaN, "models/model_list_deltaN.rds")
 ```
 
-## Recruitment change (delta r)
+## Assess the best models
 
 ```{r}
-rf.r <-randomForest(formula(paste("delta_r_gam ~ ", 
-                                  paste(rf.predictors, collapse=" + "))),
-                    data = na.omit(dat)) # NOTE THE NA OMIT!!
-rf.r.rsq <- rf.r$rsq[length(rf.r$rsq)] # explained variation
-rf.r
+## For delta N
+resamples_deltaN <- resamples(model_list_deltaN)
+summary(resamples_deltaN)
 ```
 
-## Loss change (delta l)
+The best model is the XGBoost.
 
 ```{r}
-rf.l <-randomForest(formula(paste("delta_l_gam ~ ", 
-                                  paste(rf.predictors, collapse=" + "))),
-                    data = na.omit(dat))
-rf.l.rsq <- rf.l$rsq[length(rf.l$rsq)] # explained variation
-rf.l
+## For delta g
+resamples_deltag <- resamples(model_list_deltag)
+summary(resamples_deltag)
 ```
 
-## Export variable importances
+The best model is the Random Forest.
+
+# Plot variable importances
 
 ```{r}
-predictors <- forcats::fct_inorder(rep(row.names(importance(rf.g)), times = 4))
+covariate_colors <- c(
+  "Temperature" = "#E69F00",
+  "Temperature change\n(1987-2021)" = "#56B4E9",
+  "Tree cover" =  "#009E73",
+  "Shrub cover" = "#F0E442", 
+  "Nitrogen fertilizer use" = "#0072B2", 
+  "Human foortprint change\n(1993-2009)" = "#D55E00", 
+  "Grassland cover" = "#CC79A7", 
+  "Human footprint" = "#999999", 
+  "Crops cover change\n(2003-2019)" = "#AD6F3B",
+  "NDVI change\n(1982-2012)" = "#8A9E5F", 
+  "Water cover" = "#6A3D9A" 
+)
 
-importances <- c(rf.g.rsq*importance(rf.g)/sum(importance(rf.g)),
-                 rf.r.rsq*importance(rf.r)/sum(importance(rf.r)),
-                 rf.l.rsq*importance(rf.l)/sum(importance(rf.l)),
-                 rf.N.rsq*importance(rf.N)/sum(importance(rf.N)))
+pdf("importance_deltaN.pdf", width = 5.83, height = 4.13)
 
-response <- forcats::fct_inorder(rep(c("Growth rate change",
-                                       "Recruitment rate change",
-                                       "Loss rate change",
-                                       "Abundance change"),
-                each = length(importance(rf.g))))
-
-res.rf <- data.frame(predictors, importances, response)
-res.rf
-```
-
-## Plot variable importances
-
-```{r}
-png("rf_importances.png", 
-    width=1400, height=600, res = 150)
-
-ggplot(dat = res.rf, aes(x = importances, y = predictors)) +
+varImp(model_list_deltaN$xgboost)$importance %>%  
+  mutate(response = "deltaN") %>% 
+  rownames_to_column() %>% 
+  rename(variable = "rowname",
+         importance = "Overall") %>% 
+  mutate(variable = case_when(
+    variable == "temp" ~ "Temperature",
+    variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
+    variable == "trees" ~ "Tree cover",
+    variable == "shrubs" ~ "Shrub cover",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
+    variable == "grass" ~ "Grassland cover",
+    variable == "footprint93" ~ "Human footprint",
+    variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
+    variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
+    variable == "water" ~ "Water cover")) %>% 
+  mutate(variable = reorder(variable, importance)) %>% 
+  ggplot(aes(x = importance, y = variable, fill = variable)) +
   geom_col() +
-  facet_grid(.~response) +
   xlab("Relative importance")+
+  scale_fill_manual(values = covariate_colors, guide = "none")+
   theme_bw()
 
 dev.off()
+
+pdf("importance_deltag.pdf", width = 5.83, height = 4.13)
+
+varImp(model_list_deltag$rf)$importance %>%  
+  mutate(response = "deltag") %>% 
+  rownames_to_column() %>% 
+  rename(variable = "rowname",
+         importance = "Overall") %>% 
+  mutate(variable = case_when(
+    variable == "temp" ~ "Temperature",
+    variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
+    variable == "trees" ~ "Tree cover",
+    variable == "shrubs" ~ "Shrub cover",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
+    variable == "grass" ~ "Grassland cover",
+    variable == "footprint93" ~ "Human footprint",
+    variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
+    variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
+    variable == "water" ~ "Water cover")) %>%
+  mutate(variable = reorder(variable, importance)) %>% 
+  ggplot(aes(x = importance, y = variable, fill = variable)) +
+  geom_col() +
+  xlab("Relative importance")+
+  scale_fill_manual(values = covariate_colors, guide = "none")+
+  theme_bw()
+
+dev.off()
+
+pdf("importance.pdf", width = 8, height = 4.13)
+
+varImp(model_list_deltaN$xgboost)$importance %>%  
+  mutate(response = "deltaN") %>% 
+  rownames_to_column() %>% 
+  rbind(
+    varImp(model_list_deltag$rf)$importance %>%  
+    mutate(response = "deltag") %>% 
+    rownames_to_column()
+  ) %>% 
+  rename(variable = "rowname",
+         importance = "Overall") %>% 
+  mutate(variable = case_when(
+    variable == "temp" ~ "Temperature",
+    variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
+    variable == "trees" ~ "Tree cover",
+    variable == "shrubs" ~ "Shrub cover",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
+    variable == "grass" ~ "Grassland cover",
+    variable == "footprint93" ~ "Human footprint",
+    variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
+    variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
+    variable == "water" ~ "Water cover")) %>%
+  mutate(variable = reorder(variable, importance),
+         response = factor(response, levels = c("deltaN", "deltag"))) %>% 
+  ggplot(aes(x = importance, y = variable, fill = variable)) +
+  facet_wrap(vars(response))+
+  geom_col() +
+  xlab("Relative importance")+
+  scale_fill_manual(values = covariate_colors, guide = "none")+
+  theme_bw()+
+  theme(strip.background = element_blank(), strip.text = element_blank())
+  
+dev.off()
+
+
 ```
-![importances](rf_importances.png)
+
+```{r, echo=FALSE}
+varimp <-
+  varImp(model_list_deltaN$xgboost)$importance %>%  
+  mutate(response = "deltaN") %>% 
+  rownames_to_column() %>% 
+  rbind(
+    varImp(model_list_deltag$rf)$importance %>%  
+    mutate(response = "deltag") %>% 
+    rownames_to_column()
+  ) %>% 
+  rename(variable = "rowname",
+         importance = "Overall") %>% 
+  mutate(variable = case_when(
+    variable == "temp" ~ "Temperature",
+    variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
+    variable == "trees" ~ "Tree cover",
+    variable == "shrubs" ~ "Shrub cover",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
+    variable == "grass" ~ "Grassland cover",
+    variable == "footprint93" ~ "Human footprint",
+    variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
+    variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
+    variable == "water" ~ "Water cover")) %>%
+  mutate(variable = reorder(variable, importance),
+         response = factor(response, levels = c("deltaN", "deltag"))) %>% 
+  ggplot(aes(x = importance, y = variable, fill = variable)) +
+  facet_wrap(vars(response))+
+  geom_col() +
+  xlab("Relative importance")+
+  scale_fill_manual(values = covariate_colors, guide = "none")+
+  theme_bw()+
+  theme(strip.background = element_blank(), strip.text = element_blank(),
+        axis.text.y = element_text(size = 8),
+        axis.title.y = element_blank())
+```
+
 
 # Partial dependence plots
 
@@ -419,33 +584,110 @@ dev.off()
 library(pdp)
 ```
 
+```{r}
+importance_order_deltag <- varImp(model_list_deltag$rf)$importance %>%
+  rownames_to_column("variable") %>%
+  mutate(variable = case_when(
+    variable == "temp" ~ "Temperature",
+    variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
+    variable == "trees" ~ "Tree cover",
+    variable == "shrubs" ~ "Shrub cover",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
+    variable == "grass" ~ "Grassland cover",
+    variable == "footprint93" ~ "Human footprint",
+    variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
+    variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
+    variable == "water" ~ "Water cover"
+  )) %>%
+  arrange(desc(Overall)) %>%
+  pull(variable)
+
+importance_order_deltaN <- varImp(model_list_deltaN$xgboost)$importance %>%
+  rownames_to_column("variable") %>%
+  mutate(variable = case_when(
+    variable == "temp" ~ "Temperature",
+    variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
+    variable == "trees" ~ "Tree cover",
+    variable == "shrubs" ~ "Shrub cover",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
+    variable == "grass" ~ "Grassland cover",
+    variable == "footprint93" ~ "Human footprint",
+    variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
+    variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
+    variable == "water" ~ "Water cover"
+  )) %>%
+  arrange(desc(Overall)) %>%
+  pull(variable)
+```
+
+
 ## Growth rate change (delta g)
 
 ```{r}
+covariate_labels <- c(
+  "temp" = "Temperature",
+  "temp87to21" = "Temperature change\n(1987-2021)",
+  "trees" = "Tree cover",
+  "shrubs" = "Shrub cover",
+  "Nfertilizer" = "Nitrogen fertilizer use",
+  "footprint93to09" = "Human foortprint change\n(1993-2009)",
+  "grass" = "Grassland cover",
+  "footprint93" = "Human footprint",
+  "crops03to19" = "Crops cover change\n(2003-2019)",
+  "NDVI82to12" = "NDVI change\n(1982-2012)",
+  "water" = "Water cover"
+)
+
 pp <- data.frame(x = as.numeric(), y = as.numeric(), covariate = as.character())
-for(cov in names(rf.g$forest$xlevels)){
+for(cov in model_list_deltaN$xgboost$coefnames){
   
-  pp <- rbind(pp, partial(rf.g, cov) %>% mutate(covariate = cov) %>% rename(x = cov))
+  pp <- rbind(pp, 
+              partial(model_list_deltag$rf, cov,
+                      train = dat[,c(rf.predictors,"delta_g_gam")]) %>%
+                mutate(covariate = cov) %>% rename(x = cov))
   
 }
+
+# Rename covariate column
+pp$covariate <- covariate_labels[pp$covariate]
+# Reorder
+pp$covariate <- factor(pp$covariate, levels = importance_order_deltag)
+
 
 pdf("pdp_g.pdf", width = 8.27, height = 5.83)
 
 ggplot(pp)+
-  geom_line(aes(x, yhat))+
+  geom_line(aes(x, yhat, color = covariate), size = 2)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Growth rate change (delta g)")+
-  theme_bw()
+  theme_bw()+
+  scale_color_manual(values = covariate_colors, guide = "none")
 
 dev.off()
 ```
 
 ```{r, echo=FALSE}
 ggplot(pp)+
-  geom_line(aes(x, yhat))+
+  geom_line(aes(x, yhat, color = covariate), size = 2)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Growth rate change (delta g)")+
-  theme_bw()
+  theme_bw()+
+  scale_color_manual(values = covariate_colors, guide = "none")
+
+pp_g <-
+  ggplot(pp)+
+  geom_line(aes(x, yhat, color = covariate), size = 1)+
+  facet_wrap(vars(covariate), scales = "free_x")+
+  ylab("Growth rate change (delta g)")+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  theme_bw()+
+  theme(axis.title.y = element_blank(),
+        strip.text = element_text(size = 6),
+        axis.text = element_text(size = 6))+
+  scale_color_manual(values = covariate_colors, guide = "none")
+
 ```
 
 
@@ -454,92 +696,57 @@ ggplot(pp)+
 
 ```{r}
 pp <- data.frame(x = as.numeric(), y = as.numeric(), covariate = as.character())
-for(cov in names(rf.N$forest$xlevels)){
+for(cov in model_list_deltaN$xgboost$coefnames){
   
-  pp <- rbind(pp, partial(rf.N, cov) %>% mutate(covariate = cov) %>% rename(x = cov))
+  pp <- rbind(pp, 
+              partial(model_list_deltaN$xgboost, cov,
+                      train = dat[,c(rf.predictors,"delta_g_gam")]) %>%
+                mutate(covariate = cov) %>% rename(x = cov))
   
 }
+
+# Rename covariate column
+pp$covariate <- covariate_labels[pp$covariate]
+# Reorder
+pp$covariate <- factor(pp$covariate, levels = importance_order_deltaN)
 
 pdf("pdp_N.pdf", width = 8.27, height = 5.83)
 
 ggplot(pp)+
-  geom_line(aes(x, yhat))+
+  geom_line(aes(x, yhat, colour = covariate), size = 2)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Abundance change (delta N)")+
-  theme_bw()
+  theme_bw()+
+  scale_color_manual(values = covariate_colors, guide = "none")
 
 dev.off()
 ```
 
 ```{r, echo=FALSE}
 ggplot(pp)+
-  geom_line(aes(x, yhat))+
+  geom_line(aes(x, yhat, colour = covariate), size = 2)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Abundance change (delta N)")+
-  theme_bw()
+  theme_bw()+
+  scale_color_manual(values = covariate_colors, guide = "none")
+
+pp_N <-
+  ggplot(pp)+
+  geom_line(aes(x, yhat, color = covariate), size = 1)+
+  facet_wrap(vars(covariate), scales = "free_x")+
+  ylab("Growth rate change (delta g)")+
+  theme_bw()+
+  theme(axis.title.y = element_blank(),
+        strip.text = element_text(size = 6),
+        axis.text = element_text(size = 6))+
+  scale_color_manual(values = covariate_colors, guide = "none")
 ```
 
-
-
-## Recruitment change (delta r)
-
-```{r}
-pp <- data.frame(x = as.numeric(), y = as.numeric(), covariate = as.character())
-for(cov in names(rf.r$forest$xlevels)){
-  
-  pp <- rbind(pp, partial(rf.r, cov) %>% mutate(covariate = cov) %>% rename(x = cov))
-  
-}
-
-pdf("pdp_r.pdf", width = 8.27, height = 5.83)
-
-ggplot(pp)+
-  geom_line(aes(x, yhat))+
-  facet_wrap(vars(covariate), scales = "free_x")+
-  ylab("Recruitment change (delta r)")+
-  theme_bw()
-
+```{r, echo = F}
+pdf("fig2.pdf", width = 11.69, height = 8.27)
+final_plot <- varimp / (pp_N | pp_g)
+final_plot + patchwork::plot_layout(heights = c(0.4, 0.6))
 dev.off()
-```
-
-
-```{r, echo=FALSE}
-ggplot(pp)+
-  geom_line(aes(x, yhat))+
-  facet_wrap(vars(covariate), scales = "free_x")+
-  ylab("Recruitment change (delta r)")+
-  theme_bw()
-```
-
-
-## Loss change (delta l)
-
-```{r}
-pp <- data.frame(x = as.numeric(), y = as.numeric(), covariate = as.character())
-for(cov in names(rf.l$forest$xlevels)){
-  
-  pp <- rbind(pp, partial(rf.l, cov) %>% mutate(covariate = cov) %>% rename(x = cov))
-  
-}
-
-pdf("pdp_l.pdf", width = 8.27, height = 5.83)
-
-ggplot(pp)+
-  geom_line(aes(x, yhat))+
-  facet_wrap(vars(covariate), scales = "free_x")+
-  ylab("Loss change (delta l)")+
-  theme_bw()
-
-dev.off()
-
-```
-
-```{r, echo=FALSE}
-ggplot(pp)+
-  geom_line(aes(x, yhat))+
-  facet_wrap(vars(covariate), scales = "free_x")+
-  ylab("Loss change (delta l)")+
-  theme_bw()
 ```
 
 
