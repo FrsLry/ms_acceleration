@@ -18,13 +18,7 @@ This repository contains the scripts to reproduce the statistical analyses, figu
 
 * **Figures:** The figures can be recreated using the script `.\mixed_model\figures.R`. 
 
-<<<<<<< HEAD
 * **Coincidence between hotspots of acceleration and other variables:** We explored how environmental and anthropogenic variables correlate with the patterns of acceleration, change in abundance, recruitment rate, and loss rate using Random Forests and variable importance analyses. These analyses can be found in `.\interpreting_patterns\`. 
-=======
-* **Simulations:** In `.\simulations\`, users can use a simulation framework, with known recruitment and survival parameters, and then use the dynamic N-mixture model (Dail & Madsen 2011) to correctly estimate the recruitment and survival parameters. Users are invited to test several values of parameters. Also accessible [here](https://frslry.github.io/ms_acceleration/simulations/simulations.html).
-
-* **Coincidence between hotspots of acceleration and other variables:** We explored how environmental and anthropogenic variables correlate with the patterns of acceleration, change in abundance, recruitment rate, and loss rate using Random Forests and variable importance analyses. These analyses can be found in `.\change_vs_environment\`. 
->>>>>>> 48232dc8c1a1104762670c2b6ac3e698053ea465
 
 ## System requirements
 
