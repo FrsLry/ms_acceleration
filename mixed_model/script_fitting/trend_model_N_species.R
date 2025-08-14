@@ -40,12 +40,12 @@ cat(
   sigma ~ dunif(0, 100)
   tau = 1/(sigma*sigma)
 
-  grand.beta0 ~ dnorm(0, 1e-10)
-  grand.sigma.beta0 ~ dunif(0, 100)
+  grand.beta0 ~ dnorm(0, 1e-100)
+  grand.sigma.beta0 ~ dunif(0, 10000)
   grand.tau.beta0 = 1/(grand.sigma.beta0*grand.sigma.beta0)
 
-  grand.beta1 ~ dnorm(0, 1e-10)
-  grand.sigma.beta1 ~ dunif(0, 100)
+  grand.beta1 ~ dnorm(0, 1e-100)
+  grand.sigma.beta1 ~ dunif(0, 10000)
   grand.tau.beta1 = 1/(grand.sigma.beta1*grand.sigma.beta1)
 
   # Likelihood

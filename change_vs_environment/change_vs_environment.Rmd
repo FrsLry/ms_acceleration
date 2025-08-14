@@ -325,6 +325,7 @@ rf.predictors <- c("grass",
                    "water",
                    "temp",
                    "Nfertilizer",
+                   # "crops03",
                    "footprint93",
                    "NDVI82to12",
                    "temp87to21",
@@ -432,17 +433,18 @@ The best model is the Random Forest.
 
 ```{r}
 covariate_colors <- c(
-  "Temperature" = "#E69F00",
-  "Temperature change\n(1987-2021)" = "#56B4E9",
-  "Tree cover" =  "#009E73",
-  "Shrub cover" = "#F0E442", 
-  "Nitrogen fertilizer use" = "#0072B2", 
-  "Human foortprint change\n(1993-2009)" = "#D55E00", 
-  "Grassland cover" = "#CC79A7", 
-  "Human footprint" = "#999999", 
-  "Crops cover change\n(2003-2019)" = "#AD6F3B",
-  "NDVI change\n(1982-2012)" = "#8A9E5F", 
-  "Water cover" = "#6A3D9A" 
+  "Mean Temperature\n(1970-2000)" = "#CC6677",
+  "Temperature change\n(1987-2021)" = "#332288",
+  "Tree cover\n(2020)" =  "#DDCC77",
+  "Shrub cover\n(2020)" = "#117733",
+  "Nitrogen fertilizer use\n(1994-2001)" = "#88CCEE",
+  # "Cropland area\n(2003)" = "#88CCEE",
+  "Human foortprint change\n(1993-2009)" = "#882255",
+  "Grassland cover\n(2020)" = "#44AA99",
+  "Human footprint\n(1993)" = "#999933",
+  "Crops cover change\n(2003-2019)" = "#AA4499",
+  "NDVI change\n(1982-2012)" = "#DDDDDD",
+  "Water cover\n(2020)" = "#000000"
 )
 
 pdf("importance_deltaN.pdf", width = 5.83, height = 4.13)
@@ -453,17 +455,18 @@ varImp(model_list_deltaN$xgboost)$importance %>%
   rename(variable = "rowname",
          importance = "Overall") %>% 
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover")) %>% 
+    variable == "water" ~ "Water cover\n(2020)")) %>% 
   mutate(variable = reorder(variable, importance)) %>% 
   ggplot(aes(x = importance, y = variable, fill = variable)) +
   geom_col() +
@@ -481,17 +484,18 @@ varImp(model_list_deltag$rf)$importance %>%
   rename(variable = "rowname",
          importance = "Overall") %>% 
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover")) %>%
+    variable == "water" ~ "Water cover\n(2020)")) %>% 
   mutate(variable = reorder(variable, importance)) %>% 
   ggplot(aes(x = importance, y = variable, fill = variable)) +
   geom_col() +
@@ -514,17 +518,18 @@ varImp(model_list_deltaN$xgboost)$importance %>%
   rename(variable = "rowname",
          importance = "Overall") %>% 
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover")) %>%
+    variable == "water" ~ "Water cover\n(2020)")) %>% 
   mutate(variable = reorder(variable, importance),
          response = factor(response, levels = c("deltaN", "deltag"))) %>% 
   ggplot(aes(x = importance, y = variable, fill = variable)) +
@@ -553,17 +558,18 @@ varimp <-
   rename(variable = "rowname",
          importance = "Overall") %>% 
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover")) %>%
+    variable == "water" ~ "Water cover\n(2020)")) %>% 
   mutate(variable = reorder(variable, importance),
          response = factor(response, levels = c("deltaN", "deltag"))) %>% 
   ggplot(aes(x = importance, y = variable, fill = variable)) +
@@ -588,36 +594,36 @@ library(pdp)
 importance_order_deltag <- varImp(model_list_deltag$rf)$importance %>%
   rownames_to_column("variable") %>%
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover"
-  )) %>%
+    variable == "water" ~ "Water cover\n(2020)")) %>% 
   arrange(desc(Overall)) %>%
   pull(variable)
 
 importance_order_deltaN <- varImp(model_list_deltaN$xgboost)$importance %>%
   rownames_to_column("variable") %>%
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover"
-  )) %>%
+    variable == "water" ~ "Water cover\n(2020)")) %>% 
   arrange(desc(Overall)) %>%
   pull(variable)
 ```
@@ -627,17 +633,18 @@ importance_order_deltaN <- varImp(model_list_deltaN$xgboost)$importance %>%
 
 ```{r}
 covariate_labels <- c(
-  "temp" = "Temperature",
+  "temp" = "Mean Temperature\n(1970-2000)",
   "temp87to21" = "Temperature change\n(1987-2021)",
-  "trees" = "Tree cover",
-  "shrubs" = "Shrub cover",
-  "Nfertilizer" = "Nitrogen fertilizer use",
+  "trees" = "Tree cover\n(2020)",
+  "shrubs" = "Shrub cover\n(2020)",
+  "Nfertilizer" = "Nitrogen fertilizer use\n(1994-2001)",
+  # "crops03" = "Cropland area\n(2003)",
   "footprint93to09" = "Human foortprint change\n(1993-2009)",
-  "grass" = "Grassland cover",
-  "footprint93" = "Human footprint",
+  "grass" = "Grassland cover\n(2020)",
+  "footprint93" = "Human footprint\n(1993)",
   "crops03to19" = "Crops cover change\n(2003-2019)",
   "NDVI82to12" = "NDVI change\n(1982-2012)",
-  "water" = "Water cover"
+  "water" = "Water cover\n(2020)"
 )
 
 pp <- data.frame(x = as.numeric(), y = as.numeric(), covariate = as.character())
@@ -663,7 +670,17 @@ ggplot(pp)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 dev.off()
 ```
@@ -674,7 +691,18 @@ ggplot(pp)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    # panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 pp_g <-
   ggplot(pp)+
@@ -683,10 +711,17 @@ pp_g <-
   ylab("Growth rate change (delta g)")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_bw()+
-  theme(axis.title.y = element_blank(),
-        strip.text = element_text(size = 6),
-        axis.text = element_text(size = 6))+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 ```
 
@@ -717,7 +752,17 @@ ggplot(pp)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Abundance change (delta N)")+
   theme_bw()+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 dev.off()
 ```
@@ -728,7 +773,17 @@ ggplot(pp)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Abundance change (delta N)")+
   theme_bw()+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 pp_N <-
   ggplot(pp)+
@@ -736,10 +791,17 @@ pp_N <-
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
-  theme(axis.title.y = element_blank(),
-        strip.text = element_text(size = 6),
-        axis.text = element_text(size = 6))+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 ```
 
 ```{r, echo = F}
@@ -841,17 +903,17 @@ varImp(model_list_deltaN_raw$xgboost)$importance %>%
   rename(variable = "rowname",
          importance = "Overall") %>% 
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover")) %>% 
+    variable == "water" ~ "Water cover\n(2020)")) %>% 
   mutate(variable = reorder(variable, importance)) %>% 
   ggplot(aes(x = importance, y = variable, fill = variable)) +
   geom_col() +
@@ -869,17 +931,17 @@ varImp(model_list_deltag_raw$rf)$importance %>%
   rename(variable = "rowname",
          importance = "Overall") %>% 
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover")) %>%
+    variable == "water" ~ "Water cover\n(2020)")) %>% 
   mutate(variable = reorder(variable, importance)) %>% 
   ggplot(aes(x = importance, y = variable, fill = variable)) +
   geom_col() +
@@ -902,17 +964,17 @@ varImp(model_list_deltaN_raw$xgboost)$importance %>%
   rename(variable = "rowname",
          importance = "Overall") %>% 
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover")) %>%
+    variable == "water" ~ "Water cover\n(2020)")) %>%
   mutate(variable = reorder(variable, importance),
          response = factor(response, levels = c("deltaN", "deltag"))) %>% 
   ggplot(aes(x = importance, y = variable, fill = variable)) +
@@ -939,17 +1001,17 @@ varimp <-
   rename(variable = "rowname",
          importance = "Overall") %>% 
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover")) %>%
+    variable == "water" ~ "Water cover\n(2020)")) %>%
   mutate(variable = reorder(variable, importance),
          response = factor(response, levels = c("deltaN", "deltag"))) %>% 
   ggplot(aes(x = importance, y = variable, fill = variable)) +
@@ -969,36 +1031,34 @@ varimp <-
 importance_order_deltag_raw <- varImp(model_list_deltag_raw$rf)$importance %>%
   rownames_to_column("variable") %>%
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover"
-  )) %>%
+    variable == "water" ~ "Water cover\n(2020)")) %>%
   arrange(desc(Overall)) %>%
   pull(variable)
 
 importance_order_deltaN_raw <- varImp(model_list_deltaN_raw$xgboost)$importance %>%
   rownames_to_column("variable") %>%
   mutate(variable = case_when(
-    variable == "temp" ~ "Temperature",
+    variable == "temp" ~ "Mean Temperature\n(1970-2000)",
     variable == "temp87to21" ~ "Temperature change\n(1987-2021)",
-    variable == "trees" ~ "Tree cover",
-    variable == "shrubs" ~ "Shrub cover",
-    variable == "Nfertilizer" ~ "Nitrogen fertilizer use",
+    variable == "trees" ~ "Tree cover\n(2020)",
+    variable == "shrubs" ~ "Shrub cover\n(2020)",
+    variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
-    variable == "grass" ~ "Grassland cover",
-    variable == "footprint93" ~ "Human footprint",
+    variable == "grass" ~ "Grassland cover\n(2020)",
+    variable == "footprint93" ~ "Human footprint\n(1993)",
     variable == "crops03to19" ~ "Crops cover change\n(2003-2019)",
     variable == "NDVI82to12" ~ "NDVI change\n(1982-2012)",
-    variable == "water" ~ "Water cover"
-  )) %>%
+    variable == "water" ~ "Water cover\n(2020)")) %>%
   arrange(desc(Overall)) %>%
   pull(variable)
 ```
@@ -1007,17 +1067,17 @@ importance_order_deltaN_raw <- varImp(model_list_deltaN_raw$xgboost)$importance 
 
 ```{r}
 covariate_labels <- c(
-  "temp" = "Temperature",
+  "temp" = "Mean Temperature\n(1970-2000)",
   "temp87to21" = "Temperature change\n(1987-2021)",
-  "trees" = "Tree cover",
-  "shrubs" = "Shrub cover",
-  "Nfertilizer" = "Nitrogen fertilizer use",
+  "trees" = "Tree cover\n(2020)",
+  "shrubs" = "Shrub cover\n(2020)",
+  "Nfertilizer" = "Nitrogen fertilizer use\n(1994-2001)",
   "footprint93to09" = "Human foortprint change\n(1993-2009)",
-  "grass" = "Grassland cover",
-  "footprint93" = "Human footprint",
+  "grass" = "Grassland cover\n(2020)",
+  "footprint93" = "Human footprint\n(1993)",
   "crops03to19" = "Crops cover change\n(2003-2019)",
   "NDVI82to12" = "NDVI change\n(1982-2012)",
-  "water" = "Water cover"
+  "water" = "Water cover\n(2020)"
 )
 
 pp <- data.frame(x = as.numeric(), y = as.numeric(), covariate = as.character())
@@ -1043,7 +1103,17 @@ ggplot(pp)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 dev.off()
 ```
@@ -1054,7 +1124,17 @@ ggplot(pp)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 pp_g <-
   ggplot(pp)+
@@ -1063,10 +1143,17 @@ pp_g <-
   ylab("Growth rate change (delta g)")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_bw()+
-  theme(axis.title.y = element_blank(),
-        strip.text = element_text(size = 6),
-        axis.text = element_text(size = 6))+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 ```
 
@@ -1097,7 +1184,17 @@ ggplot(pp)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Abundance change (delta N)")+
   theme_bw()+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 dev.off()
 ```
@@ -1108,7 +1205,17 @@ ggplot(pp)+
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Abundance change (delta N)")+
   theme_bw()+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 pp_N <-
   ggplot(pp)+
@@ -1116,10 +1223,18 @@ pp_N <-
   facet_wrap(vars(covariate), scales = "free_x")+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
-  theme(axis.title.y = element_blank(),
-        strip.text = element_text(size = 6),
-        axis.text = element_text(size = 6))+
-  scale_color_manual(values = covariate_colors, guide = "none")
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
+
 ```
 
 ```{r, echo = F}

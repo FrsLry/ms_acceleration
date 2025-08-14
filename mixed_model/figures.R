@@ -188,11 +188,10 @@ for(metric in c("N", "g")){
           mutate(year = as.numeric(year)) %>%
           ggplot()+
           geom_line(aes(year, value, group = route), color = "grey")+
-          geom_hline(yintercept = ifelse(metric %in% c("gt0", "g"), 0, NA), linetype="dashed", color = "black")+
+          geom_hline(yintercept = ifelse(metric %in% c("g"), 0, NA_real_), linetype="dashed", color = "black")+
           stat_summary(aes(year, value), fun = median, geom = "line", color = "blue",
                        linewidth = 1, linetype = 2)+
-          geom_hline(yintercept = ifelse(metric %in% c("N"), median(d[,1]), NA), linetype="dashed", color = "black")+
-          scale_y_continuous(trans= ggallin::ssqrt_trans)+
+          scale_y_continuous(trans= if (metric == "g") ggallin::ssqrt_trans else "identity")+
           ylab(metric)+
           theme_light())
 
@@ -311,10 +310,10 @@ tmp %>%
   scale_colour_manual(values = unique(sort(tmp$color)))+
   geom_hline(yintercept = 0, linetype="dashed", color = "#595959ff", size = 1)+
   geom_vline(xintercept = 0, linetype="dashed", color = "#595959ff", size = 1)+
-  geom_text_repel(aes(ab_trend, g, label = species), check_overlap = T,
+  geom_text_repel(aes(ab_trend, g, label = species),
                   color = "black",
                   min.segment.length = unit(0, 'lines'),
-                  max.overlaps = 10,  ## too control the number of labels
+                  max.overlaps = 10,  ## to control the number of labels
                   segment.size = 1,
                   fontface = "bold",
                   size = 3)+
@@ -340,11 +339,11 @@ for(metric in c("N", "g")){
           mutate(year = as.numeric(year)) %>%
           ggplot()+
           geom_line(aes(year, value, group = species), color = "grey")+
-          geom_hline(yintercept = ifelse(metric %in% c("gt0", "g"), 0, NA), linetype="dashed", color = "black")+
+          geom_hline(yintercept = ifelse(metric %in% c("gt0", "g"), 0, NA_real_), linetype="dashed", color = "black")+
           stat_summary(aes(year, value), fun = median, geom = "line", color = "blue",
                        linewidth = 1, linetype = 2)+
-          # geom_hline(yintercept = ifelse(metric %in% c("N"), median(pull(d[,2])), NA), linetype="dashed", color = "black")+
-          scale_y_continuous(trans= ggallin::ssqrt_trans)+
+          geom_hline(yintercept = ifelse(metric %in% c("N"), median(pull(d[,2])), NA), linetype="dashed", color = "black")+
+          scale_y_continuous(trans= if (metric == "g") ggallin::ssqrt_trans else "identity")+
           ylab(metric)+
           theme_light())
 
@@ -566,20 +565,30 @@ routes_shp$N_upper <- overall_N_output$q97.5$beta1
 pdf("mixed_model/figures/deltan_vs_deltag.pdf",
     width = 8.27, height = 5.83)
 
-p1 <-
+df <-
   routes_shp %>%
   select(ab_trend, growth_rate, g_upper, g_lower, N_upper, N_lower) %>%
   mutate(data = "Not smoothed") %>% st_drop_geometry() %>%
+  mutate(color = case_when(
+    N_upper < 0 & g_upper < 0 ~ "#E31A1C",
+    N_upper < 0 & g_lower > 0 ~ "#FF7F00",
+    N_lower > 0 & g_lower > 0 ~ "#33A02C",
+    N_lower > 0 & g_upper < 0 ~ "#1F78B4"
+  ))
+
+p1 <-
+  df %>%
   ggplot()+
-  geom_point(aes(ab_trend, growth_rate))+
+  geom_point(aes(ab_trend, growth_rate, colour = color), show.legend = F)+
+  scale_colour_manual(values = unique(sort(df$color)))+
   geom_vline(xintercept = 0, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   geom_errorbar(aes(x = ab_trend, y = growth_rate,
-                    ymin = g_lower, ymax = g_upper),
+                    ymin = g_lower, ymax = g_upper, colour = color),
                 alpha = .3, size = .2,
                 show.legend = F)+
   geom_errorbar(aes(x = ab_trend, y = growth_rate,
-                    xmin = N_lower, xmax = N_upper),
+                    xmin = N_lower, xmax = N_upper, colour = color),
                 alpha = .3, size = .2,
                 show.legend = F)+
   ylab("Growth rate change")+
@@ -587,15 +596,27 @@ p1 <-
   facet_wrap(. ~ data, scales = "free")+
   theme_bw()
 
-p2 <-
+
+df <-
   routes_shp %>% select(ab_trend_gam, growth_rate_gam) %>%
   rename(ab_trend = ab_trend_gam,
          growth_rate = growth_rate_gam) %>%
   mutate(data = "Smoothed") %>% st_drop_geometry() %>%
+  mutate(color = case_when(
+    ab_trend < 0 & growth_rate < 0 ~ "#E31A1C",
+    ab_trend < 0 & growth_rate > 0 ~ "#FF7F00",
+    ab_trend > 0 & growth_rate > 0 ~ "#33A02C",
+    ab_trend > 0 & growth_rate < 0 ~ "#1F78B4"
+  ))
+
+
+p2 <-
+  df %>%
   ggplot()+
-  geom_point(aes(ab_trend, growth_rate))+
+  geom_point(aes(ab_trend, growth_rate, colour = color), show.legend = F)+
   geom_vline(xintercept = 0, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_colour_manual(values = unique(sort(df$color)))+
   facet_wrap(. ~ data, scales = "free")+
   xlab("Abundance change")+
   ylab("Growth rate change")+
