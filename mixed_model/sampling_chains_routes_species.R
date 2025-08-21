@@ -57,6 +57,7 @@ mean_sd_L_sp <- data.frame(species = as.character(), year = as.numeric(), mean_L
 mean_sd_g_sp <- data.frame(species = as.character(), year = as.numeric(), mean_g = as.numeric(), sd_g = as.numeric())
 mean_sd_r_sp <- data.frame(species = as.character(), year = as.numeric(), mean_r = as.numeric(), sd_r = as.numeric())
 mean_sd_l_sp <- data.frame(species = as.character(), year = as.numeric(), mean_l = as.numeric(), sd_l = as.numeric())
+mean_sd_absg_sp <- data.frame(species = as.character(), year = as.numeric(), mean_absg = as.numeric(), sd_absg = as.numeric())
 
 ## Iterate over each species
 for(file in files){
@@ -160,10 +161,11 @@ for(file in files){
   R_sp <- t(colSums(R_sampled, dims = 1)) # row = sample / column = year / value = recruitment summed over all rows for each year
   L_sp <- t(colSums(L_sampled, dims = 1)) # row = sample / column = year / value = loss summed over all rows for each year
 
-  ## Compute growth rate, recruitment and loss rates for the species at the scale of North America
+  ## Compute absolute growth rate, per capita growth rate, recruitment and loss rates for the species at the scale of North America
   g_sp <- (N_sp[,-1] - N_sp[,-35])/N_sp[,-35] # row = sample / column = year
   r_sp <- R_sp/N_sp[,-35]                     # row = sample / column = year
   l_sp <- L_sp/N_sp[,-35]                     # row = sample / column = year
+  absg_sp <- N_sp[,-1] - N_sp[,-35]
 
   ## Per species analysis: compute mean and sd over the s samples
   mean_sd_N_sp <-
@@ -208,6 +210,13 @@ for(file in files){
                      mean_l = apply(l_sp, 2, mean),
                      sd_l = apply(l_sp, 2, sd)))
 
+  mean_sd_absg_sp <-
+    rbind(mean_sd_absg_sp,
+          data.frame(species = gsub("^model_output/|\\.rds$","",file),
+                     year = 1:34,
+                     mean_absg = apply(absg_sp, 2, mean),
+                     sd_absg = apply(absg_sp, 2, sd)))
+
 
   rm(N_sampled, R_sampled, L_sampled)
   gc()
@@ -218,67 +227,74 @@ for(file in files){
 
 ## Save the output of this loop
 saveRDS(N_overall, "mixed_model/save_samples/N_overall.rds")
-saveRDS(R_overall, "mixed_model/save_samples/R_overall.rds")
-saveRDS(L_overall, "mixed_model/save_samples/L_overall.rds")
+# saveRDS(R_overall, "mixed_model/save_samples/R_overall.rds")
+# saveRDS(L_overall, "mixed_model/save_samples/L_overall.rds")
 saveRDS(mean_sd_N_sp, "mixed_model/save_samples/mean_sd_N_sp.rds")
-saveRDS(mean_sd_R_sp, "mixed_model/save_samples/mean_sd_R_sp.rds")
-saveRDS(mean_sd_L_sp, "mixed_model/save_samples/mean_sd_L_sp.rds")
+# saveRDS(mean_sd_R_sp, "mixed_model/save_samples/mean_sd_R_sp.rds")
+# saveRDS(mean_sd_L_sp, "mixed_model/save_samples/mean_sd_L_sp.rds")
 saveRDS(mean_sd_g_sp, "mixed_model/save_samples/mean_sd_g_sp.rds")
-saveRDS(mean_sd_r_sp, "mixed_model/save_samples/mean_sd_rr_sp.rds")
-saveRDS(mean_sd_l_sp, "mixed_model/save_samples/mean_sd_lr_sp.rds")
-
+# saveRDS(mean_sd_r_sp, "mixed_model/save_samples/mean_sd_rr_sp.rds")
+# saveRDS(mean_sd_l_sp, "mixed_model/save_samples/mean_sd_lr_sp.rds")
+saveRDS(mean_sd_absg_sp, "mixed_model/save_samples/mean_sd_absg_sp.rds")
 
 ## Compute rates g,r,l of the overall abundance at each route
 # First load the samples
 N_overall <- readRDS("mixed_model/save_samples/N_overall.rds")
-R_overall <- readRDS("mixed_model/save_samples/R_overall.rds")
-L_overall <- readRDS("mixed_model/save_samples/L_overall.rds")
+# R_overall <- readRDS("mixed_model/save_samples/R_overall.rds")
+# L_overall <- readRDS("mixed_model/save_samples/L_overall.rds")
 
 g_overall <- (N_overall[,-1,] - N_overall[,-35,]) / N_overall[,-35,]
-r_overall <- R_overall / N_overall[,-35,]
-l_overall <- L_overall / N_overall[,-35,]
+absg_overall <- N_overall[,-1,] - N_overall[,-35,]
+# r_overall <- R_overall / N_overall[,-35,]
+# l_overall <- L_overall / N_overall[,-35,]
 
 ## Compute growth rate relative to time 1
-gt0_overall <- array(NA, dim = c(1033, 35, 500))
-for(k in 1:dim(gt0_overall)[3]){
-  gt0_overall[,,k] <- (N_overall[,,k] - N_overall[,1,k]) / N_overall[,1,k]
-}
+# gt0_overall <- array(NA, dim = c(1033, 35, 500))
+# for(k in 1:dim(gt0_overall)[3]){
+#   gt0_overall[,,k] <- (N_overall[,,k] - N_overall[,1,k]) / N_overall[,1,k]
+# }
 
 
 ## Compute the mean and sd of N,R,L,g,r,l, for each year and route over the s samples
 mean_N_overall <- apply(N_overall, c(1,2), mean)
 sd_N_overall <- apply(N_overall, c(1,2), sd)
-mean_R_overall <- apply(R_overall, c(1,2), mean)
-sd_R_overall <- apply(R_overall, c(1,2), sd)
-mean_L_overall <- apply(L_overall, c(1,2), mean)
-sd_L_overall <- apply(L_overall, c(1,2), sd)
+# mean_R_overall <- apply(R_overall, c(1,2), mean)
+# sd_R_overall <- apply(R_overall, c(1,2), sd)
+# mean_L_overall <- apply(L_overall, c(1,2), mean)
+# sd_L_overall <- apply(L_overall, c(1,2), sd)
 
 mean_g_overall <- apply(g_overall, c(1,2), mean)
 sd_g_overall <- apply(g_overall, c(1,2), sd)
-mean_r_overall <- apply(r_overall, c(1,2), mean)
-sd_r_overall <- apply(r_overall, c(1,2), sd)
-mean_l_overall <- apply(l_overall, c(1,2), mean)
-sd_l_overall <- apply(l_overall, c(1,2), sd)
+# mean_r_overall <- apply(r_overall, c(1,2), mean)
+# sd_r_overall <- apply(r_overall, c(1,2), sd)
+# mean_l_overall <- apply(l_overall, c(1,2), mean)
+# sd_l_overall <- apply(l_overall, c(1,2), sd)
 
-mean_gt0_overall <- apply(gt0_overall, c(1,2), mean)
-sd_gt0_overall <- apply(gt0_overall, c(1,2), sd)
+mean_absg_overall <- apply(absg_overall, c(1,2), mean)
+sd_absg_overall <- apply(absg_overall, c(1,2), sd)
+
+# mean_gt0_overall <- apply(gt0_overall, c(1,2), mean)
+# sd_gt0_overall <- apply(gt0_overall, c(1,2), sd)
 
 saveRDS(mean_N_overall, "mixed_model/save_samples/mean_N_overall.rds")
 saveRDS(sd_N_overall, "mixed_model/save_samples/sd_N_overall.rds")
-saveRDS(mean_R_overall, "mixed_model/save_samples/mean_R_overall.rds")
-saveRDS(sd_R_overall, "mixed_model/save_samples/sd_R_overall.rds")
-saveRDS(mean_L_overall, "mixed_model/save_samples/mean_L_overall.rds")
-saveRDS(sd_L_overall, "mixed_model/save_samples/sd_L_overall.rds")
+# saveRDS(mean_R_overall, "mixed_model/save_samples/mean_R_overall.rds")
+# saveRDS(sd_R_overall, "mixed_model/save_samples/sd_R_overall.rds")
+# saveRDS(mean_L_overall, "mixed_model/save_samples/mean_L_overall.rds")
+# saveRDS(sd_L_overall, "mixed_model/save_samples/sd_L_overall.rds")
 
 saveRDS(mean_g_overall, "mixed_model/save_samples/mean_g_overall.rds")
 saveRDS(sd_g_overall, "mixed_model/save_samples/sd_g_overall.rds")
-saveRDS(mean_r_overall, "mixed_model/save_samples/mean_rr_overall.rds")
-saveRDS(sd_r_overall, "mixed_model/save_samples/sd_rr_overall.rds")
-saveRDS(mean_l_overall, "mixed_model/save_samples/mean_lr_overall.rds")
-saveRDS(sd_l_overall, "mixed_model/save_samples/sd_lr_overall.rds")
+# saveRDS(mean_r_overall, "mixed_model/save_samples/mean_rr_overall.rds")
+# saveRDS(sd_r_overall, "mixed_model/save_samples/sd_rr_overall.rds")
+# saveRDS(mean_l_overall, "mixed_model/save_samples/mean_lr_overall.rds")
+# saveRDS(sd_l_overall, "mixed_model/save_samples/sd_lr_overall.rds")
 
-saveRDS(mean_gt0_overall, "mixed_model/save_samples/mean_gt0_overall.rds")
-saveRDS(sd_gt0_overall, "mixed_model/save_samples/sd_gt0_overall.rds")
+# saveRDS(mean_gt0_overall, "mixed_model/save_samples/mean_gt0_overall.rds")
+# saveRDS(sd_gt0_overall, "mixed_model/save_samples/sd_gt0_overall.rds")
+
+saveRDS(mean_absg_overall, "mixed_model/save_samples/mean_absg_overall.rds")
+saveRDS(sd_absg_overall, "mixed_model/save_samples/sd_absg_overall.rds")
 
 ## Run check over time series
 # route = 1000

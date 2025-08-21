@@ -1,0 +1,37 @@
+model{
+
+  # Priors (uninformative)
+  # Priors for random slopes and intercepts
+  for(i in 1:routes){
+    beta0[i] ~ dnorm(grand.beta0, grand.tau.beta0)
+    beta1[i] ~ dnorm(grand.beta1, grand.tau.beta1)
+  }
+
+  sigma ~ dunif(0, 100)
+  tau = 1 / (sigma * sigma)
+
+  # Priors for the distribution of the random intercepts
+  grand.beta0 ~ dnorm(0, 1e-10)
+  grand.sigma.beta0 ~ dunif(0, 100)
+  grand.tau.beta0 = 1 / (grand.sigma.beta0 * grand.sigma.beta0)
+
+  # Priors for the distribution of the random slopes
+  grand.beta1 ~ dnorm(0, 1e-10)
+  grand.sigma.beta1 ~ dunif(0, 100)
+  grand.tau.beta1 = 1 / (grand.sigma.beta1 * grand.sigma.beta1)
+
+
+  # Likelihood
+  for(r in 1:routes){
+    for(year in 1:years){
+
+      tau.obs[r,year] <- 1/(sd[r,year]*sd[r,year])
+      error[r,year] ~ dnorm(0, tau.obs[r,year])
+
+      absg[r,year] ~ dnorm(mu[r,year], tau)
+      mu[r,year] = beta0[r] + beta1[r] * t[year] + error[r,year]
+
+    }
+  }
+
+  }

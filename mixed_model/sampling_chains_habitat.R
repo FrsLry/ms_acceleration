@@ -76,6 +76,7 @@ mean_sd_L_hab <- data.frame(habitat = as.character(), year = as.numeric(), mean_
 mean_sd_g_hab <- data.frame(habitat = as.character(), year = as.numeric(), mean_g = as.numeric(), sd_g = as.numeric())
 mean_sd_r_hab <- data.frame(habitat = as.character(), year = as.numeric(), mean_r = as.numeric(), sd_r = as.numeric())
 mean_sd_l_hab <- data.frame(habitat = as.character(), year = as.numeric(), mean_l = as.numeric(), sd_l = as.numeric())
+mean_sd_absg_hab <- data.frame(habitat = as.character(), year = as.numeric(), mean_absg = as.numeric(), sd_absg = as.numeric())
 
 
 ## Iterate over each habitat
@@ -198,12 +199,14 @@ saveRDS(L_habitat, "mixed_model/save_samples/L_habitat.rds")
 ## Compute rates g,r,l of families
 # First load the samples
 N_habitats <- readRDS("mixed_model/save_samples/N_habitat.rds")
-R_habitats <- readRDS("mixed_model/save_samples/R_habitat.rds")
-L_habitats <- readRDS("mixed_model/save_samples/L_habitat.rds")
+# R_habitats <- readRDS("mixed_model/save_samples/R_habitat.rds")
+# L_habitats <- readRDS("mixed_model/save_samples/L_habitat.rds")
 
 g_habitats <- (N_habitats[,-1,] - N_habitats[,-35,]) / N_habitats[,-35,]
-r_habitats <- R_habitats / N_habitats[,-35,]
-l_habitats <- L_habitats / N_habitats[,-35,]
+# r_habitats <- R_habitats / N_habitats[,-35,]
+# l_habitats <- L_habitats / N_habitats[,-35,]
+
+absg_habitats <- N_habitats[,-1,] - N_habitats[,-35,]
 
 # ## Compute growth rate relative to time 1
 # gt0_overall <- array(NA, dim = c(1033, 35, 500))
@@ -221,13 +224,16 @@ sd_N_habitats <- apply(N_habitats, c(1,2), sd)
 
 mean_g_habitats <- apply(g_habitats, c(1,2), mean)
 sd_g_habitats <- apply(g_habitats, c(1,2), sd)
-mean_r_habitats <- apply(r_habitats, c(1,2), mean)
-sd_r_habitats <- apply(r_habitats, c(1,2), sd)
-mean_l_habitats <- apply(l_habitats, c(1,2), mean)
-sd_l_habitats <- apply(l_habitats, c(1,2), sd)
+# mean_r_habitats <- apply(r_habitats, c(1,2), mean)
+# sd_r_habitats <- apply(r_habitats, c(1,2), sd)
+# mean_l_habitats <- apply(l_habitats, c(1,2), mean)
+# sd_l_habitats <- apply(l_habitats, c(1,2), sd)
 
 # mean_gt0_overall <- apply(gt0_overall, c(1,2), mean)
 # sd_gt0_overall <- apply(gt0_overall, c(1,2), sd)
+
+mean_absg_habitats <- apply(absg_habitats, c(1,2), mean)
+sd_absg_habitats <-apply(absg_habitats, c(1,2), sd)
 
 saveRDS(mean_N_habitats, "mixed_model/save_samples/mean_N_habitats.rds")
 saveRDS(sd_N_habitats, "mixed_model/save_samples/sd_N_habitats.rds")
@@ -238,13 +244,16 @@ saveRDS(sd_N_habitats, "mixed_model/save_samples/sd_N_habitats.rds")
 
 saveRDS(mean_g_habitats, "mixed_model/save_samples/mean_g_habitats.rds")
 saveRDS(sd_g_habitats, "mixed_model/save_samples/sd_g_habitats.rds")
-saveRDS(mean_r_habitats, "mixed_model/save_samples/mean_rr_habitats.rds")
-saveRDS(sd_r_habitats, "mixed_model/save_samples/sd_rr_habitats.rds")
-saveRDS(mean_l_habitats, "mixed_model/save_samples/mean_lr_habitats.rds")
-saveRDS(sd_l_habitats, "mixed_model/save_samples/sd_lr_habitats.rds")
+# saveRDS(mean_r_habitats, "mixed_model/save_samples/mean_rr_habitats.rds")
+# saveRDS(sd_r_habitats, "mixed_model/save_samples/sd_rr_habitats.rds")
+# saveRDS(mean_l_habitats, "mixed_model/save_samples/mean_lr_habitats.rds")
+# saveRDS(sd_l_habitats, "mixed_model/save_samples/sd_lr_habitats.rds")
 
 # saveRDS(mean_gt0_overall, "mixed_model/save_samples/mean_gt0_overall.rds")
 # saveRDS(sd_gt0_overall, "mixed_model/save_samples/sd_gt0_overall.rds")
+
+saveRDS(mean_absg_habitats, "mixed_model/save_samples/mean_absg_habitats.rds")
+saveRDS(sd_absg_habitats, "mixed_model/save_samples/sd_absg_habitats.rds")
 
 ## Run check over time series
 # route = 1000

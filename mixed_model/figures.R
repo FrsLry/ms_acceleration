@@ -22,6 +22,7 @@ routes_shp$ab_trend <- overall_N_output$mean$beta1
 routes_shp$growth_rate <- overall_g_output$mean$beta1
 routes_shp$g_lower <- overall_g_output$q2.5$beta1
 routes_shp$g_upper <- overall_g_output$q97.5$beta1
+routes_shp$absg <- overall_absg_output$mean$beta1
 
 ## Add lat and long of route centroid
 routes_shp <- routes_shp %>%
@@ -33,10 +34,13 @@ ab_gam <- gam(ab_trend ~ s(lon, lat, bs = "gp", k = 100, m = 2),
               data = routes_shp)
 growth_rate_gam <- gam(growth_rate ~ s(lon, lat, bs = "gp", k = 100, m = 2),
                        data = routes_shp)
+absg_gam <- gam(absg ~ s(lon, lat, bs = "gp", k = 100, m = 2),
+                data = routes_shp)
 
 ## Add GAMs values to shapefile
 routes_shp$ab_trend_gam <- ab_gam$fitted.values
 routes_shp$growth_rate_gam <- growth_rate_gam$fitted.values
+routes_shp$absg_gam <- absg_gam$fitted.values
 
 ## get the states polygon
 states_shp <-
@@ -53,7 +57,8 @@ states_shp <-
 pdf("mixed_model/figures/trend_maps_gam.pdf",
     width=11, height=8.5)
 for(metric in c("ab_trend_gam",
-                "growth_rate_gam")){
+                "growth_rate_gam",
+                "absg_gam")){
   print(
     routes_shp %>%
       st_transform(crs = "+proj=aea +lon_0=-108.4570304 +lat_1=34.300327 +lat_2=64.5191945 +lat_0=49.4097608 +datum=WGS84 +units=m +no_defs") %>%
@@ -99,7 +104,8 @@ pdf("mixed_model/figures/trend_maps.pdf",
     width=11, height=8.5)
 
 for(metric in c("ab_trend",
-                "growth_rate")){
+                "growth_rate",
+                "absg")){
     print(
       routes_shp %>%
         st_transform(crs = "+proj=aea +lon_0=-108.4570304 +lat_1=34.300327 +lat_2=64.5191945 +lat_0=49.4097608 +datum=WGS84 +units=m +no_defs") %>%
@@ -153,7 +159,7 @@ dev.off()
 pdf("mixed_model/figures/hist_posterior.pdf",
     width = 5.83, height = 4.13)
 
-for(metric in c("overall_N_output", "overall_g_output")){
+for(metric in c("overall_N_output", "overall_g_output", "overall_absg_output")){
 
   mcmc_samples <- get(metric)$samples[,c("grand.beta1")]
   mcmc_df <- do.call(rbind, lapply(mcmc_samples, as.data.frame))
@@ -176,7 +182,8 @@ dev.off()
 ## Trends plot
 pdf("mixed_model/figures/trends_numbers.pdf",
     width = 5.83, height = 4.13)
-for(metric in c("N", "g")){
+
+for(metric in c("N", "g", "absg")){
 
   d <- readRDS(paste0("mixed_model/save_samples/mean_",metric,"_overall.rds"))
 
@@ -188,10 +195,10 @@ for(metric in c("N", "g")){
           mutate(year = as.numeric(year)) %>%
           ggplot()+
           geom_line(aes(year, value, group = route), color = "grey")+
-          geom_hline(yintercept = ifelse(metric %in% c("g"), 0, NA_real_), linetype="dashed", color = "black")+
+          geom_hline(yintercept = ifelse(metric %in% c("g", "absg"), 0, NA_real_), linetype="dashed", color = "black")+
           stat_summary(aes(year, value), fun = median, geom = "line", color = "blue",
                        linewidth = 1, linetype = 2)+
-          scale_y_continuous(trans= if (metric == "g") ggallin::ssqrt_trans else "identity")+
+          scale_y_continuous(trans= if (metric %in% c("g","absg")) ggallin::ssqrt_trans else "identity")+
           ylab(metric)+
           theme_light())
 
@@ -252,7 +259,10 @@ species_data <- data.frame(species = as.character(),
                            ab_trend = as.numeric(),
                            g = as.numeric(),
                            g_upper = as.numeric(),
-                           g_lower = as.numeric())
+                           g_lower = as.numeric(),
+                           absg = as.numeric(),
+                           absg_upper = as.numeric(),
+                           absg_lower = as.numeric())
 
 for(i in 1:length(perspecies_N_output$mean$beta1)){
 
@@ -263,6 +273,9 @@ for(i in 1:length(perspecies_N_output$mean$beta1)){
   g = perspecies_g_output$mean$beta1[i]
   g_upper = perspecies_g_output$q97.5$beta1[i]
   g_lower = perspecies_g_output$q2.5$beta1[i]
+  absg = perspecies_absg_output$mean$beta1[i]
+  absg_upper = perspecies_absg_output$q97.5$beta1[i]
+  absg_lower = perspecies_absg_output$q2.5$beta1[i]
 
   species_data <- rbind(species_data,
                         data.frame(species = s,
@@ -271,16 +284,19 @@ for(i in 1:length(perspecies_N_output$mean$beta1)){
                                    a_lower = a_lower,
                                    g = g,
                                    g_upper = g_upper,
-                                   g_lower = g_lower))
+                                   g_lower = g_lower,
+                                   absg = absg,
+                                   absg_upper = absg_upper,
+                                   absg_lower = absg_lower))
 
 }
 
 ## Add the color palette
 tmp <-
 species_data %>%
-  mutate(nSign = ifelse(ab_trend < 0, "decrease", "increase")) %>%
+  mutate(nSign = ifelse(ab_trend < 0, "decrease", "increase"))
   ## remove one species that increase the scale of the plot
-  filter(species != "Eurasian Collared-Dove")
+  # filter(species != "Eurasian Collared-Dove")
 
 
 ## delta N vs delta g per species
@@ -321,13 +337,54 @@ tmp %>%
   scale_x_continuous(trans = ggallin::pseudolog10_trans)+
   scale_y_continuous(labels = scales::scientific)+
   theme_bw()
+
 dev.off()
 
+## delta N vs delta absg per species
+tmp <- tmp %>%
+  mutate(color_absg = case_when(
+    a_upper < 0 & absg_upper < 0 ~ "#E31A1C",
+    a_upper < 0 & absg_lower > 0 ~ "#FF7F00",
+    a_lower > 0 & absg_lower > 0 ~ "#33A02C",
+    a_lower > 0 & absg_upper < 0 ~ "#1F78B4"
+  ))
+
+svg("mixed_model/figures/deltaN_vs_deltaabsg_sp.svg",
+    height = 4.13, width = 5.83)
+
+tmp %>%
+  ggplot()+
+  geom_errorbar(aes(x = ab_trend, y = absg,
+                    ymin = absg_lower, ymax = absg_upper, colour = color_absg),
+                alpha = .3, size = .5,
+                show.legend = F)+
+  geom_errorbar(aes(x = ab_trend, y = absg,
+                    xmin = a_lower, xmax = a_upper, colour= color_absg),
+                alpha = .3, size = .5,
+                show.legend = F)+
+  geom_point(aes(ab_trend, absg, color = color_absg),
+             show.legend = F, size = 1)+
+  scale_colour_manual(values = unique(sort(tmp$color_absg)))+
+  geom_hline(yintercept = 0, linetype="dashed", color = "#595959ff", size = 1)+
+  geom_vline(xintercept = 0, linetype="dashed", color = "#595959ff", size = 1)+
+  geom_text_repel(aes(ab_trend, absg, label = species),
+                  color = "black",
+                  min.segment.length = unit(0, 'lines'),
+                  max.overlaps = 10,  ## to control the number of labels
+                  segment.size = 1,
+                  fontface = "bold",
+                  size = 3)+
+  # scale_color_manual(values = unique(sort(tmp$rec_vs_loss)))+
+  scale_x_continuous(trans = ggallin::pseudolog10_trans)+
+  scale_y_continuous(trans = ggallin::pseudolog10_trans)+
+  theme_bw()
+
+dev.off()
 
 ## Abundance and growth rate trends per species
 pdf("mixed_model/figures/trends_species.pdf",
     width = 5.83, height = 4.13)
-for(metric in c("N", "g")){
+for(metric in c("N", "g", "absg")){
 
   d <- readRDS(paste0("mixed_model/save_samples/mean_sd_",metric,"_sp.rds"))
 
@@ -339,11 +396,11 @@ for(metric in c("N", "g")){
           mutate(year = as.numeric(year)) %>%
           ggplot()+
           geom_line(aes(year, value, group = species), color = "grey")+
-          geom_hline(yintercept = ifelse(metric %in% c("gt0", "g"), 0, NA_real_), linetype="dashed", color = "black")+
+          geom_hline(yintercept = ifelse(metric %in% c("gt0", "g", "absg"), 0, NA_real_), linetype="dashed", color = "black")+
           stat_summary(aes(year, value), fun = median, geom = "line", color = "blue",
                        linewidth = 1, linetype = 2)+
-          geom_hline(yintercept = ifelse(metric %in% c("N"), median(pull(d[,2])), NA), linetype="dashed", color = "black")+
-          scale_y_continuous(trans= if (metric == "g") ggallin::ssqrt_trans else "identity")+
+          geom_hline(yintercept = ifelse(metric %in% c("N", "absg"), median(pull(d[,2])), NA), linetype="dashed", color = "black")+
+          scale_y_continuous(trans= if (metric %in% c("g","absg")) ggallin::ssqrt_trans else "identity")+
           ylab(metric)+
           theme_light())
 
@@ -354,6 +411,7 @@ dev.off()
 ## Load the models
 perfamily_N_output <- readRDS("mixed_model/outputs/perfamily_N_output.rds")
 perfamily_g_output <- readRDS("mixed_model/outputs/perfamily_g_output.rds")
+perfamily_absg_output <- readRDS("mixed_model/outputs/perfamily_absg_output.rds")
 ## Get back the family names
 family <- readr::read_csv("data/phylo.csv")
 
@@ -369,7 +427,10 @@ families_data <- data.frame(family = as.character(),
                             a_lower = as.numeric(),
                             g = as.numeric(),
                             g_upper = as.numeric(),
-                            g_lower = as.numeric())
+                            g_lower = as.numeric(),
+                            absg = as.numeric(),
+                            absg_upper = as.numeric(),
+                            absg_lower = as.numeric())
 
 for(i in 1:length(perfamily_N_output$mean$beta1)){
 
@@ -380,6 +441,9 @@ for(i in 1:length(perfamily_N_output$mean$beta1)){
   g = perfamily_g_output$mean$beta1[i]
   g_upper = perfamily_g_output$q97.5$beta1[i]
   g_lower = perfamily_g_output$q2.5$beta1[i]
+  absg = perfamily_absg_output$mean$beta1[i]
+  absg_upper = perfamily_absg_output$q97.5$beta1[i]
+  absg_lower = perfamily_absg_output$q2.5$beta1[i]
 
   families_data <- rbind(families_data,
                         data.frame(family = f,
@@ -388,7 +452,10 @@ for(i in 1:length(perfamily_N_output$mean$beta1)){
                                    a_lower = a_lower,
                                    g = g,
                                    g_upper = g_upper,
-                                   g_lower = g_lower))
+                                   g_lower = g_lower,
+                                   absg = absg,
+                                   absg_upper = absg_upper,
+                                   absg_lower = absg_lower))
 
 }
 
@@ -435,16 +502,89 @@ tmp %>%
   scale_x_continuous(trans = ggallin::pseudolog10_trans)+
   scale_y_continuous(labels = scales::scientific)+
   theme_bw()
+
 dev.off()
+
+## delta N vs delta absg per family
+tmp <- tmp %>%
+  mutate(color_absg = case_when(
+    a_upper < 0 & absg_upper < 0 ~ "#E31A1C",
+    a_upper < 0 & absg_lower > 0 ~ "#FF7F00",
+    a_lower > 0 & absg_lower > 0 ~ "#33A02C",
+    a_lower > 0 & absg_upper < 0 ~ "#1F78B4"
+  ))
+
+svg("mixed_model/figures/deltaN_vs_deltaabsg_fam.svg",
+    height = 4.13, width = 5.83)
+
+tmp %>%
+  ggplot()+
+  geom_errorbar(aes(x = ab_trend, y = absg,
+                    ymin = absg_lower, ymax = absg_upper, colour = color_absg),
+                alpha = .3, size = .5,
+                show.legend = F)+
+  geom_errorbar(aes(x = ab_trend, y = absg,
+                    xmin = a_lower, xmax = a_upper, colour= color_absg),
+                alpha = .3, size = .5,
+                show.legend = F)+
+  geom_point(aes(ab_trend, absg, color = color_absg),
+             show.legend = F, size = 1)+
+  scale_colour_manual(values = unique(sort(tmp$color_absg)))+
+  geom_hline(yintercept = 0, linetype="dashed", color = "#595959ff", size = 1)+
+  geom_vline(xintercept = 0, linetype="dashed", color = "#595959ff", size = 1)+
+  geom_text_repel(aes(ab_trend, absg, label = family), check_overlap = T,
+                  color = "black",
+                  min.segment.length = unit(0, 'lines'),
+                  max.overlaps = 10,  ## too control the number of labels
+                  segment.size = 1,
+                  fontface = "bold",
+                  size = 3)+
+  # scale_color_manual(values = unique(sort(tmp$rec_vs_loss)))+
+  scale_x_continuous(trans = ggallin::pseudolog10_trans)+
+  scale_y_continuous(trans = ggallin::pseudolog10_trans)+
+  theme_bw()
+
+dev.off()
+
+for(metric in c("N", "g", "absg")){
+
+  d <- readRDS(paste0("mixed_model/save_samples/mean_",metric,"_families.rds"))
+  sd <- readRDS(paste0("mixed_model/save_samples/sd_",metric,"_families.rds"))
+
+  d <- d %>% as.data.frame()
+  colnames(d) <- c(((2021-ncol(d))+1):2021)
+  sd <- sd %>% as.data.frame()
+  colnames(sd) <- c(((2021-ncol(d))+1):2021)
+
+  print(d %>% rownames_to_column(var = "family") %>%
+          pivot_longer(cols = -family, names_to = "year", values_to = "values") %>%
+          left_join(
+            sd %>% rownames_to_column(var = "family") %>%
+              pivot_longer(cols = -family, names_to = "year", values_to = "sd")
+          ) %>%
+          mutate(year = as.numeric(year)) %>%
+          ggplot()+
+          ## add 95% credible interval
+          geom_ribbon(aes(year, values, group = family,
+                          ymin = values-sd*1.96,
+                          ymax= values+sd*1.96), colour="grey", fill="grey",alpha=0.5)+
+          geom_line(aes(year, values, group = family, color = family), show.legend = F)+
+          facet_wrap(vars(family), scales = "free")+
+          geom_hline(yintercept = if (metric %in% c("g","absg")) 0 else NULL, linetype="dashed", color = "black")+
+          ylab(metric)+
+          theme_light())
+
+}
 
 ## Per habitats plots #####
 ## Load the models
 perhabitat_N_output <- readRDS("mixed_model/outputs/perhabitat_N_output.rds")
 perhabitat_g_output <- readRDS("mixed_model/outputs/perhabitat_g_output.rds")
+perhabitat_absg_output <- readRDS("mixed_model/outputs/perhabitat_absg_output.rds")
 ## Get back the family names
 mean_N_habitats <- readRDS("mixed_model/save_samples/mean_N_habitats.rds")
 
-## Extrat family names
+## Extract family names
 habitats <- rownames(mean_N_habitats)
 
 habitats_data <- data.frame(habitat = as.character(),
@@ -453,7 +593,10 @@ habitats_data <- data.frame(habitat = as.character(),
                             a_lower = as.numeric(),
                             g = as.numeric(),
                             g_upper = as.numeric(),
-                            g_lower = as.numeric())
+                            g_lower = as.numeric(),
+                            absg = as.numeric(),
+                            absg_upper = as.numeric(),
+                            absg_lower = as.numeric())
 
 for(i in 1:length(perhabitat_N_output$mean$beta1)){
 
@@ -464,6 +607,9 @@ for(i in 1:length(perhabitat_N_output$mean$beta1)){
   g = perhabitat_g_output$mean$beta1[i]
   g_upper = perhabitat_g_output$q97.5$beta1[i]
   g_lower = perhabitat_g_output$q2.5$beta1[i]
+  absg = perhabitat_absg_output$mean$beta1[i]
+  absg_upper = perhabitat_absg_output$q97.5$beta1[i]
+  absg_lower = perhabitat_absg_output$q2.5$beta1[i]
 
   habitats_data <- rbind(habitats_data,
                          data.frame(habitat = h,
@@ -472,7 +618,10 @@ for(i in 1:length(perhabitat_N_output$mean$beta1)){
                                     a_lower = a_lower,
                                     g = g,
                                     g_upper = g_upper,
-                                    g_lower = g_lower))
+                                    g_lower = g_lower,
+                                    absg = absg,
+                                    absg_upper = absg_upper,
+                                    absg_lower = absg_lower))
 
 }
 
@@ -521,11 +670,51 @@ tmp %>%
   theme_bw()
 dev.off()
 
+## delta N vs delta absg per habitat
+tmp <- tmp %>%
+  mutate(color_absg = case_when(
+    a_upper < 0 & absg_upper < 0 ~ "#E31A1C",
+    a_upper < 0 & absg_lower > 0 ~ "#FF7F00",
+    a_lower > 0 & absg_lower > 0 ~ "#33A02C",
+    a_lower > 0 & absg_upper < 0 ~ "#1F78B4"
+  ))
+
+svg("mixed_model/figures/deltaN_vs_deltaabsg_hab.svg",
+    height = 4.13, width = 5.83)
+
+tmp %>%
+  ggplot()+
+  geom_errorbar(aes(x = ab_trend, y = absg,
+                    ymin = absg_lower, ymax = absg_upper, colour = color_absg),
+                alpha = .3, size = .5,
+                show.legend = F)+
+  geom_errorbar(aes(x = ab_trend, y = absg,
+                    xmin = a_lower, xmax = a_upper, colour= color_absg),
+                alpha = .3, size = .5,
+                show.legend = F)+
+  geom_point(aes(ab_trend, absg, color = color_absg),
+             show.legend = F, size = 1)+
+  scale_colour_manual(values = unique(sort(tmp$color_absg)))+
+  geom_hline(yintercept = 0, linetype="dashed", color = "#595959ff", size = 1)+
+  geom_vline(xintercept = 0, linetype="dashed", color = "#595959ff", size = 1)+
+  geom_text_repel(aes(ab_trend, absg, label = habitat), check_overlap = T,
+                  color = "black",
+                  min.segment.length = unit(0, 'lines'),
+                  max.overlaps = 10,  ## too control the number of labels
+                  segment.size = 1,
+                  fontface = "bold",
+                  size = 3)+
+  # scale_color_manual(values = unique(sort(tmp$rec_vs_loss)))+
+  scale_x_continuous(trans = ggallin::pseudolog10_trans)+
+  scale_y_continuous(trans = ggallin::pseudolog10_trans)+
+  theme_bw()
+dev.off()
+
 
 ## Trends per habitat
 pdf("mixed_model/figures/trends_habitat.pdf",
     width = 8.27, height = 5.83)
-for(metric in c("N", "g")){
+for(metric in c("N", "g", "absg")){
 
   d <- readRDS(paste0("mixed_model/save_samples/mean_",metric,"_habitats.rds"))
   sd <- readRDS(paste0("mixed_model/save_samples/sd_",metric,"_habitats.rds"))
@@ -549,7 +738,7 @@ for(metric in c("N", "g")){
                           ymax= values+sd*1.96), colour="grey", fill="grey",alpha=0.5)+
           geom_line(aes(year, values, group = habitat, color = habitat), show.legend = F)+
           facet_wrap(vars(habitat), scales = "free")+
-          geom_hline(yintercept = if (metric == "g") 0 else NULL, linetype="dashed", color = "black")+
+          geom_hline(yintercept = if (metric %in% c("g","absg")) 0 else NULL, linetype="dashed", color = "black")+
           ylab(metric)+
           theme_light())
 
@@ -620,6 +809,74 @@ p2 <-
   facet_wrap(. ~ data, scales = "free")+
   xlab("Abundance change")+
   ylab("Growth rate change")+
+  theme_bw()
+
+cowplot::plot_grid(p1, p2)
+
+dev.off()
+
+## Plot of change in abundance vs. change in absolute growth rate
+routes_shp$absg_upper <- overall_absg_output$q97.5$beta1
+routes_shp$absg_lower <- overall_absg_output$q2.5$beta1
+
+pdf("mixed_model/figures/deltan_vs_deltaabsg.pdf",
+    width = 8.27, height = 5.83)
+
+df <-
+  routes_shp %>%
+  select(ab_trend, absg, absg_upper, absg_lower, N_upper, N_lower) %>%
+  mutate(data = "Not smoothed") %>% st_drop_geometry() %>%
+  mutate(color_absg = case_when(
+    N_upper < 0 & absg_upper < 0 ~ "#E31A1C",
+    N_upper < 0 & absg_lower > 0 ~ "#FF7F00",
+    N_lower > 0 & absg_lower > 0 ~ "#33A02C",
+    N_lower > 0 & absg_upper < 0 ~ "#1F78B4"
+  ))
+
+p1 <-
+  df %>%
+  ggplot()+
+  geom_point(aes(ab_trend, absg, colour = color_absg), show.legend = F)+
+  scale_colour_manual(values = unique(sort(df$color_absg)))+
+  geom_vline(xintercept = 0, linetype = "dashed")+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  geom_errorbar(aes(x = ab_trend, y = absg,
+                    ymin = absg_lower, ymax = absg_upper, colour = color_absg),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  geom_errorbar(aes(x = ab_trend, y = absg,
+                    xmin = N_lower, xmax = N_upper, colour = color_absg),
+                alpha = .3, size = .2,
+                show.legend = F)+
+  ylab("Absolute growth rate change")+
+  xlab("Abundance change")+
+  facet_wrap(. ~ data, scales = "free")+
+  theme_bw()
+
+
+df <-
+  routes_shp %>% select(ab_trend_gam, absg_gam) %>%
+  rename(ab_trend = ab_trend_gam,
+         absg = absg_gam) %>%
+  mutate(data = "Smoothed") %>% st_drop_geometry() %>%
+  mutate(color_absg = case_when(
+    ab_trend < 0 & absg < 0 ~ "#E31A1C",
+    ab_trend < 0 & absg > 0 ~ "#FF7F00",
+    ab_trend > 0 & absg > 0 ~ "#33A02C",
+    ab_trend > 0 & absg < 0 ~ "#1F78B4"
+  ))
+
+
+p2 <-
+  df %>%
+  ggplot()+
+  geom_point(aes(ab_trend, absg, colour = color_absg), show.legend = F)+
+  geom_vline(xintercept = 0, linetype = "dashed")+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_colour_manual(values = unique(sort(df$color_absg)))+
+  facet_wrap(. ~ data, scales = "free")+
+  xlab("Abundance change")+
+  ylab("Absolute growth rate change")+
   theme_bw()
 
 cowplot::plot_grid(p1, p2)

@@ -1,0 +1,35 @@
+model{
+
+  # Priors
+  grand.beta0 ~ dnorm(0, 1.0E-4)
+  grand.beta1 ~ dnorm(0, 1.0E-4)
+
+  # Group SDs: half-t(df=3, scale=1.5)
+  grand.sigma.beta0 ~ dt(0, 1/pow(1.5,2), 3) T(0,)
+  grand.sigma.beta1 ~ dt(0, 1/pow(1.5,2), 3) T(0,)
+
+  for(i in 1:species){
+    z0[i] ~ dnorm(0, 1)
+    z1[i] ~ dnorm(0, 1)
+    beta0[i] <- grand.beta0 + z0[i] * grand.sigma.beta0
+    beta1[i] <- grand.beta1 + z1[i] * grand.sigma.beta1
+  }
+
+  # Residual SD (keep as in your script if you want; shown here as Uniform)
+  sigma ~ dunif(0, 1000000)
+  tau = 1/(sigma*sigma)
+
+  # Likelihood
+  for(sp in 1:species){
+    for(year in 1:years){
+
+      tau.obs[sp,year] <- 1/(sd[sp,year]*sd[sp,year])
+      error[sp,year] ~ dnorm(0, tau.obs[sp,year])
+
+      absg[sp,year] ~ dnorm(mu[sp,year], tau)
+      mu[sp,year] <- beta0[sp] + beta1[sp] * t[year] + error[sp,year]
+
+    }
+  }
+
+  }

@@ -76,7 +76,7 @@ mean_sd_L_fam <- data.frame(family = as.character(), year = as.numeric(), mean_L
 mean_sd_g_fam <- data.frame(family = as.character(), year = as.numeric(), mean_g = as.numeric(), sd_g = as.numeric())
 mean_sd_r_fam <- data.frame(family = as.character(), year = as.numeric(), mean_r = as.numeric(), sd_r = as.numeric())
 mean_sd_l_fam <- data.frame(family = as.character(), year = as.numeric(), mean_l = as.numeric(), sd_l = as.numeric())
-
+mean_sd_absg_fam <- data.frame(family = as.character(), year = as.numeric(), mean_absg = as.numeric(), sd_absg = as.numeric())
 
 ## Iterate over each family
 for(fam in unique(family$Family)){
@@ -198,12 +198,14 @@ saveRDS(L_family, "mixed_model/save_samples/L_family.rds")
 ## Compute rates g,r,l of families
 # First load the samples
 N_families <- readRDS("mixed_model/save_samples/N_family.rds")
-R_families <- readRDS("mixed_model/save_samples/R_family.rds")
-L_families <- readRDS("mixed_model/save_samples/L_family.rds")
+# R_families <- readRDS("mixed_model/save_samples/R_family.rds")
+# L_families <- readRDS("mixed_model/save_samples/L_family.rds")
 
 g_families <- (N_families[,-1,] - N_families[,-35,]) / N_families[,-35,]
-r_families <- R_families / N_families[,-35,]
-l_families <- L_families / N_families[,-35,]
+# r_families <- R_families / N_families[,-35,]
+# l_families <- L_families / N_families[,-35,]
+
+absg_families <- N_families[,-1,] - N_families[,-35,]
 
 # ## Compute growth rate relative to time 1
 # gt0_overall <- array(NA, dim = c(1033, 35, 500))
@@ -221,13 +223,16 @@ sd_N_families <- apply(N_families, c(1,2), sd)
 
 mean_g_families <- apply(g_families, c(1,2), mean)
 sd_g_families <- apply(g_families, c(1,2), sd)
-mean_r_families <- apply(r_families, c(1,2), mean)
-sd_r_families <- apply(r_families, c(1,2), sd)
-mean_l_families <- apply(l_families, c(1,2), mean)
-sd_l_families <- apply(l_families, c(1,2), sd)
+# mean_r_families <- apply(r_families, c(1,2), mean)
+# sd_r_families <- apply(r_families, c(1,2), sd)
+# mean_l_families <- apply(l_families, c(1,2), mean)
+# sd_l_families <- apply(l_families, c(1,2), sd)
 
 # mean_gt0_overall <- apply(gt0_overall, c(1,2), mean)
 # sd_gt0_overall <- apply(gt0_overall, c(1,2), sd)
+
+mean_absg_families <- apply(absg_families, c(1,2), mean)
+sd_absg_families <- apply(absg_families, c(1,2), sd)
 
 saveRDS(mean_N_families, "mixed_model/save_samples/mean_N_families.rds")
 saveRDS(sd_N_families, "mixed_model/save_samples/sd_N_families.rds")
@@ -238,13 +243,16 @@ saveRDS(sd_N_families, "mixed_model/save_samples/sd_N_families.rds")
 
 saveRDS(mean_g_families, "mixed_model/save_samples/mean_g_families.rds")
 saveRDS(sd_g_families, "mixed_model/save_samples/sd_g_families.rds")
-saveRDS(mean_r_families, "mixed_model/save_samples/mean_rr_families.rds")
-saveRDS(sd_r_families, "mixed_model/save_samples/sd_rr_families.rds")
-saveRDS(mean_l_families, "mixed_model/save_samples/mean_lr_families.rds")
-saveRDS(sd_l_families, "mixed_model/save_samples/sd_lr_families.rds")
+# saveRDS(mean_r_families, "mixed_model/save_samples/mean_rr_families.rds")
+# saveRDS(sd_r_families, "mixed_model/save_samples/sd_rr_families.rds")
+# saveRDS(mean_l_families, "mixed_model/save_samples/mean_lr_families.rds")
+# saveRDS(sd_l_families, "mixed_model/save_samples/sd_lr_families.rds")
 
 # saveRDS(mean_gt0_overall, "mixed_model/save_samples/mean_gt0_overall.rds")
 # saveRDS(sd_gt0_overall, "mixed_model/save_samples/sd_gt0_overall.rds")
+
+saveRDS(mean_absg_families, "mixed_model/save_samples/mean_absg_families.rds")
+saveRDS(sd_absg_families, "mixed_model/save_samples/sd_absg_families.rds")
 
 ## Run check over time series
 # route = 1000
