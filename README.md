@@ -18,7 +18,7 @@ This repository contains the scripts to reproduce the statistical analyses, figu
 
 * **Figures:** The figures can be recreated using the script `.\mixed_model\figures.R`. 
 
-* **Coincidence between hotspots of acceleration and other variables:** We explored how environmental and anthropogenic variables correlate with the patterns of acceleration, change in abundance, recruitment rate, and loss rate using Random Forests and variable importance analyses. These analyses can be found in `.\change_vs_environment\`. 
+* **Coincidence between hotspots of acceleration and other variables:** We explored how environmental and anthropogenic variables correlate with the patterns of acceleration, and change in abundance using Random Forests and variable importance analyses. These analyses can be found in `.\change_vs_environment\`. 
 
 ## System requirements
 
