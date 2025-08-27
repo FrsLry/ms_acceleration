@@ -79,7 +79,7 @@ for(filename in filelist)
   species <- gsub("summary_", replacement = "", x = species)
   print(species)
 
-  # extract matrix of C from the data
+  # extract matrix of C (observed counts) from the data
   spec <- dat.all[species][[species]]
   Cmat <- spec$C#[,-1]
 
@@ -162,14 +162,21 @@ for(filename in filelist)
 
 
     # ================ AGGREGATION ACCROSS TIME SERIES =========================
+    # total estimated abundance summed accross all time series:
     Ntot <- colSums(Nmat, na.rm = TRUE)
+    # uncertaint about the estimated abundance
     Nunc <- aggregate.uncertainty(Nmat, Nmat.sd, Nrep = 500)
+
+    # total observed abundance summed across all time series
+    ObsTot <- colSums(Cmat, na.rm = TRUE)
+
 
     plot(1:35, Ntot, type = "l", lty = 1, lwd = 2, ylim = c(0, max(Nunc[2,])),
          ylab = "Number of individuals", xlab="t",
          main = "Total N")
       lines(1:35, Nunc[1,], lwd = 1, lty = 1)
       lines(1:35, Nunc[2,], lwd = 1, lty = 1)
+      lines(1:35, ObsTot, lwd=2, col="red")
 
   dev.off()
 }
