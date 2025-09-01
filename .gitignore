@@ -4,3 +4,4 @@
 .Ruserdata
 scripts/classif_uncertainty.R
 .RDataTmp
+*.Rproj
