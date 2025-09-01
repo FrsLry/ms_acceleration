@@ -546,6 +546,9 @@ tmp %>%
 
 dev.off()
 
+## Abundance and growth rate trends per family
+pdf("mixed_model/figures/trends_family.pdf",
+    width = 13, height = 8.27)
 for(metric in c("N", "g", "absg")){
 
   d <- readRDS(paste0("mixed_model/save_samples/mean_",metric,"_families.rds"))
@@ -575,6 +578,7 @@ for(metric in c("N", "g", "absg")){
           theme_light())
 
 }
+dev.off()
 
 ## Per habitats plots #####
 ## Load the models

@@ -20,6 +20,8 @@ This repository contains the scripts to reproduce the statistical analyses, figu
 
 * **Coincidence between hotspots of acceleration and other variables:** We explored how environmental and anthropogenic variables correlate with the patterns of acceleration, and change in abundance using Random Forests and variable importance analyses. These analyses can be found in `.\change_vs_environment\`. 
 
+* **Note:** The absolute growth rate (`g` in the main text) is noted as `absg` in the code, and the per-capita growth rate (`r` in the main text) is noted as `g` in the code. Scripts will be updated later on the github repository. 
+
 ## System requirements
 
 All the dynamic *N*-mixture models were fit on the [Ohio Supercomputer Center ](https://www.oh-tech.org/) under Linux operating system with JAGS ver. 4.3.0. This repository was created on Windows 10, with R ver. 4.2.1.   
