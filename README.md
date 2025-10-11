@@ -29,5 +29,3 @@ All the dynamic *N*-mixture models were fit on the [Ohio Supercomputer Center ](
 ## License
 
 Code and figures in this repository are under [CC-BY license](https://creativecommons.org/share-your-work/cclicenses/). 
-
-If you use it, please give us credit by citing our manuscript: https://doi.org/10.32942/X21032
