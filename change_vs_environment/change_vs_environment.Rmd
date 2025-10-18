@@ -148,6 +148,139 @@ pop2000 <- log10(rast("rasters/pop2000.tif") + 1)
 routes$pop2000 <- terra::extract(pop2000, routes, fun = mean)[,2]
 ```
 
+## Pesticide
+
+```{r, message=FALSE, results='hide'}
+## Load all pesticide data
+list.files("pesticides_data/", full.names = T)
+
+for(y in c(1992:2012)){
+  assign(paste0("pesticide_",y),
+         read_delim(paste0("pesticides_data/per_county_",y,".txt"),
+                    delim = "\t", escape_double = FALSE,
+                    trim_ws = TRUE))
+}
+
+pesticide_2013_2017 <- read_delim("pesticides_data/per_county_2013_2017/EPest_county_estimates_2013_2017_v2.txt",
+                                  delim = "\t", escape_double = FALSE,
+                                  trim_ws = TRUE)
+for(y in c(2013:2017)){
+  assign(paste0("pesticide_",y),
+         pesticide_2013_2017[pesticide_2013_2017$YEAR == y,])
+}
+
+rm(pesticide_2013_2017)
+
+pesticide_2018 <- read_delim("pesticides_data/per_county_2018/EPest_county_estimates_2018.txt",
+                             delim = "\t", escape_double = FALSE,
+                             trim_ws = TRUE)
+```
+
+```{r}
+## Filter the pesticides that are reported every year from 1992 to 2018
+compounds <- c()
+# Get all the compounds present from 1992 to 2018
+for(d in ls()[grepl("pesticide_", ls())]){
+  compounds <- append(compounds, unique(get(d)$COMPOUND))
+}
+compounds <- unique(compounds)
+# Get the list of the ones reported every year
+for(d in ls()[grepl("pesticide_", ls())]){
+  compounds <- unique(get(d)$COMPOUND)[unique(get(d)$COMPOUND) %in% compounds]
+}
+```
+
+### Average pesticide 
+
+```{r, message=FALSE, results='hide'}
+shp <- readRDS("shapefile_counties/sites_counties.RDS")
+shp_area <- readRDS("shapefile_counties/area_counties.RDS")
+# Compute the log(sum all pesticides/county area)
+for(d in ls()[grepl("pesticide_", ls())]){
+  assign(print(d),
+         get(d) %>%
+           filter(COMPOUND %in% compounds) %>%
+           unite(state_county, STATE_FIPS_CODE, COUNTY_FIPS_CODE, sep = "_") %>%
+           group_by(YEAR, state_county) %>%
+           summarise(EPEST_LOW_KG = sum(EPEST_LOW_KG, na.rm = T),
+                     EPEST_HIGH_KG = sum(EPEST_HIGH_KG, na.rm = T)) %>%
+           ungroup() %>% 
+           left_join(shp, by = "state_county") %>%
+           left_join(shp_area, by = "state_county") %>% 
+           mutate(pesticide_low = log(EPEST_LOW_KG/as.numeric(area_m_2)),
+                  pesticide_high = log(EPEST_HIGH_KG/as.numeric(area_m_2))) 
+         )
+}
+```
+
+
+```{r}
+## Merge all the pesticide data together
+all_pesticide <- pesticide_1992[0,]
+for(d in ls()[grepl("pesticide_", ls())]){
+  all_pesticide <- rbind(all_pesticide, get(d))
+}
+```
+
+```{r}
+## Group by county and get the mean log(sum all pesticides/county area)
+mean_pesticide <- all_pesticide %>% 
+  group_by(state_county) %>% 
+  summarise(mean_pesticide_low = mean(pesticide_low),
+            mean_pesticide_high = mean(pesticide_high)) %>% 
+  ungroup()
+
+## Merge with shapefile
+mean_pesticide <- mean_pesticide %>% 
+  left_join(shp, by = "state_county") %>%
+  left_join(shp_area, by = "state_county") %>%
+  st_as_sf(sf_column_name = "geometry") %>% 
+  st_transform(st_crs(routes))
+
+# Extract max of the pesticide value across all counties each route touches
+routes$mean_pesticide <- sapply(
+  sf::st_intersects(routes, mean_pesticide),
+  function(i) if (length(i)) max(mean_pesticide$mean_pesticide_high[i], na.rm = TRUE) else NA_real_
+)
+```
+
+### Pesticide use trend (1992-2018) 
+
+```{r}
+## Assess the change in pesticide use using lm
+# There is only one -Inf value for log(pesticide/m^2) in 2017, replace with NA
+all_pesticide$pesticide_high[!is.finite(all_pesticide$pesticide_high)] <- NA
+
+## Perform the lm between log(pesticide/county area) and time
+trend_pesticide <-
+  all_pesticide %>%
+  na.omit() %>%
+  group_by(state_county) %>%
+  st_drop_geometry() %>%
+  do({
+    fit <- lm(pesticide_high ~ YEAR, data = .)
+    tibble(
+      slope_per_year = coef(fit)[2]
+    )
+  }) %>%
+  ungroup()
+
+## Merge with the shapefile
+trend_pesticide <-
+  trend_pesticide %>% 
+  left_join(shp, by = "state_county") %>%
+  left_join(shp_area, by = "state_county") %>% 
+  st_as_sf(sf_column_name = "geometry") %>% 
+  st_transform(st_crs(routes))
+
+# Extract max of the pesticide value across all counties each route touches
+routes$pesticide_change <- sapply(
+  sf::st_intersects(routes, trend_pesticide),
+  function(i) if (length(i)) max(trend_pesticide$slope_per_year[i], na.rm = TRUE) else NA_real_
+)
+  
+```
+
 # Plot the rasters
 
 ```{r}
@@ -251,10 +384,67 @@ plot(water, col=map.pal("viridis", 100),
      background = "grey")
 lines(states, col = "white")
 
+## For pesticide 1992
+zr    <- range(min(mean_pesticide$mean_pesticide_high[is.finite(mean_pesticide$mean_pesticide_high)], na.rm = T),
+               max(mean_pesticide$mean_pesticide_high[is.finite(mean_pesticide$mean_pesticide_high)], na.rm = T))
+cols  <- map.pal("viridis", 200)
+brks  <- seq(zr[1], zr[2], length.out = length(cols) + 1)
+
+op <- par(mar = par("mar") + c(0,0,0,4))
+e  <- terra::ext(mean_pesticide)
+plot(NA, xlim=c(e[1],e[2]), ylim=c(e[3],e[4]), type="n", axes=FALSE, xlab="", ylab="",
+     main="Mean log(pesticide/m^2) (1992-2018)")
+plot(mean_pesticide["mean_pesticide_high"],
+     add=TRUE, reset=FALSE, border=NA,
+     breaks = brks,                    # <- explicit breaks
+     pal    = function(n) cols,        # <- same colors as legend
+     key.pos = NULL)
+plot(sf::st_geometry(states), add=TRUE, border="white", lwd=0.4)
+fields::image.plot(legend.only=TRUE, zlim = range(brks), col=cols, add=TRUE,
+                   legend.mar=3, legend.shrink=0.9)
+par(op)
+
+
+## For change
+# Robust limits for contrast (2–98%); extremes will use end colors
+lims <- quantile(trend_pesticide$slope_per_year, c(0.02, 0.98), na.rm = TRUE)
+
+# Clamp attribute so outliers take first/last color
+trend_pesticide$slope_clamped <- pmax(
+  pmin(trend_pesticide$slope_per_year, lims[2]),
+  lims[1]
+)
+
+
+zr    <- range(lims)                         
+cols  <- map.pal("viridis", 200)
+brks  <- seq(zr[1], zr[2], length.out = length(cols) + 1)
+
+op <- par(mar = par("mar") + c(0,0,0,4))
+e  <- terra::ext(trend_pesticide)
+plot(NA, xlim = c(e[1], e[2]), ylim = c(e[3], e[4]),
+     type = "n", axes = FALSE, xlab = "", ylab = "",
+     main = "log(pesticide/m^2) change (1992–2018)")
+
+plot(trend_pesticide["slope_clamped"],
+     add = TRUE, reset = FALSE, border = NA,
+     breaks = brks,                   
+     pal    = function(n) cols,       
+     key.pos = NULL)
+
+plot(sf::st_geometry(states), add = TRUE, border = "white", lwd = 0.4)
+
+fields::image.plot(legend.only = TRUE, zlim = range(brks), col = cols, add = TRUE,
+                   legend.mar = 3, legend.shrink = 0.9)
+par(op)
+
 dev.off()
 ```
 
+
 ![rasters](rasters.png)
+
+
 
 # Load the estimated demographic rates
 
@@ -285,7 +475,7 @@ routes$delta_absg_gam <- gam(delta_absg ~ s(lon, lat, bs = "gp", k = 100, m = 2)
                           data = routes)$fitted.values
 
 # prepare data.frame for analyses
-data.frame(names(routes))
+# data.frame(names(routes))
 dat <- as.data.frame(routes[, 24:ncol(routes)])
 
 # remove variables that we don't want in the pairplot
@@ -297,7 +487,7 @@ dat <- select(dat, -c("lat", "lon")) # remove spatial coordinates
 # Pairwise Spearman correlations
 
 ```{r}
-png("all_pairs.png", width= 2500, height = 2500)
+png("all_pairs.png", width= 23, height = 16, units = "in", res = 300)
 
 psych::pairs.panels(dat,
                     ellipses = FALSE,
@@ -328,6 +518,8 @@ rf.predictors <- c("grass",
                    "water",
                    "temp",
                    "Nfertilizer",
+                   # "mean_pesticide",
+                   "pesticide_change",
                    # "crops03",
                    "footprint93",
                    "NDVI82to12",
@@ -342,12 +534,16 @@ rf.predictors <- c("grass",
 # First we split the dataset into training and validation datasets
 set.seed(333)
 traindata <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+# Impute missing data for pesticide change in Canada
+imputed_data <- missForest::missForest(dat[, c(rf.predictors, "delta_absg_gam")])$ximp
+
 ## We use three tree-based algorithms in order to assess which one perform the best
 ## Create the list of models
 model_list_deltaabsg <-
   caretList(
     delta_absg_gam ~ ., 
-    data = na.omit(dat[,c(rf.predictors,"delta_absg_gam")]),
+    data = imputed_data,
     trControl = traindata,
     metric = "RMSE",
     tuneList = list(
@@ -380,11 +576,14 @@ model_list_deltaabsg <-
 ### Growth rate change (delta g)
 
 ```{r, message=FALSE, results='hide'}
+# Impute missing data for pesticide change in Canada
+imputed_data <- missForest::missForest(dat[, c(rf.predictors, "delta_g_gam")])$ximp
+
 ## Create the list of models
 model_list_deltag <-
   caretList(
     delta_g_gam ~ ., 
-    data = na.omit(dat[,c(rf.predictors,"delta_g_gam")]),
+    data = imputed_data,
     trControl = traindata,
     metric = "RMSE",
     tuneList = list(
@@ -417,11 +616,14 @@ model_list_deltag <-
 ### Abundance change (delta N)
 
 ```{r, message=FALSE, results='hide'}
+# Impute missing data for pesticide change in Canada
+imputed_data <- missForest::missForest(dat[, c(rf.predictors, "delta_N_gam")])$ximp
+
 ## Create the list of models
 model_list_deltaN <-
   caretList(
     delta_N_gam ~ ., 
-    data = na.omit(dat[,c(rf.predictors,"delta_N_gam")]),
+    data = imputed_data,
     trControl = traindata,
     metric = "RMSE",
     tuneList = list(
@@ -486,6 +688,8 @@ covariate_colors <- c(
   "Tree cover\n(2020)" =  "#DDCC77",
   "Shrub cover\n(2020)" = "#117733",
   "Nitrogen fertilizer use\n(1994-2001)" = "#88CCEE",
+  # "Mean Pesticide" = "#88CCEE",
+  "Pesticide change\n(1992-2018)" = "#FF5733",
   # "Cropland area\n(2003)" = "#88CCEE",
   "Human foortprint change\n(1993-2009)" = "#882255",
   "Grassland cover\n(2020)" = "#44AA99",
@@ -508,6 +712,8 @@ varImp(model_list_deltaN$xgboost)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
@@ -537,6 +743,8 @@ varImp(model_list_deltag$rf)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
@@ -566,6 +774,8 @@ varImp(model_list_deltaabsg$xgboost)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
@@ -605,6 +815,8 @@ varImp(model_list_deltaN$xgboost)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
@@ -650,6 +862,8 @@ varimp <-
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
@@ -684,6 +898,8 @@ importance_order_deltag <- varImp(model_list_deltag$rf)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
@@ -702,6 +918,8 @@ importance_order_deltaN <- varImp(model_list_deltaN$xgboost)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
@@ -720,6 +938,8 @@ importance_order_deltaabsg <- varImp(model_list_deltaabsg$xgboost)$importance %>
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
@@ -741,6 +961,8 @@ covariate_labels <- c(
   "trees" = "Tree cover\n(2020)",
   "shrubs" = "Shrub cover\n(2020)",
   "Nfertilizer" = "Nitrogen fertilizer use\n(1994-2001)",
+  # "mean_pesticide" = "Mean Pesticide",
+  "pesticide_change" = "Pesticide change\n(1992-2018)",
   # "crops03" = "Cropland area\n(2003)",
   "footprint93to09" = "Human foortprint change\n(1993-2009)",
   "grass" = "Grassland cover\n(2020)",
@@ -770,7 +992,7 @@ pdf("pdp_g.pdf", width = 8.27, height = 5.83)
 
 ggplot(pp)+
   geom_line(aes(x, yhat, color = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
   theme(
@@ -791,7 +1013,7 @@ dev.off()
 ```{r, echo=FALSE}
 ggplot(pp)+
   geom_line(aes(x, yhat, color = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
   theme(
@@ -810,7 +1032,7 @@ ggplot(pp)+
 pp_g <-
   ggplot(pp)+
   geom_line(aes(x, yhat, color = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Growth rate change (delta g)")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_bw()+
@@ -851,7 +1073,7 @@ pdf("pdp_N.pdf", width = 8.27, height = 5.83)
 
 ggplot(pp)+
   geom_line(aes(x, yhat, colour = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Abundance change (delta N)")+
   theme_bw()+
   theme(
@@ -872,7 +1094,7 @@ dev.off()
 ```{r, echo=FALSE}
 ggplot(pp)+
   geom_line(aes(x, yhat, colour = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Abundance change (delta N)")+
   theme_bw()+
   theme(
@@ -890,7 +1112,7 @@ ggplot(pp)+
 pp_N <-
   ggplot(pp)+
   geom_line(aes(x, yhat, color = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
   theme(
@@ -928,7 +1150,7 @@ pdf("pdp_absg.pdf", width = 8.27, height = 5.83)
 
 ggplot(pp)+
   geom_line(aes(x, yhat, colour = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Abundance change (delta N)")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_bw()+
@@ -1003,12 +1225,16 @@ dev.off()
 # First we split the dataset into training and validation datasets
 set.seed(333)
 traindata <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+# Impute missing data for pesticide change in Canada
+imputed_data <- missForest::missForest(dat[, c(rf.predictors, "delta_absg")])$ximp
+
 ## We use three tree-based algorithms in order to assess which one perform the best
 ## Create the list of models
 model_list_deltaabsg_raw <-
   caretList(
     delta_absg ~ ., 
-    data = na.omit(dat[,c(rf.predictors,"delta_absg")]),
+    data = imputed_data,
     trControl = traindata,
     metric = "RMSE",
     tuneList = list(
@@ -1041,11 +1267,14 @@ model_list_deltaabsg_raw <-
 ### Growth rate change (delta g)
 
 ```{r, message=FALSE, results='hide'}
+# Impute missing data for pesticide change in Canada
+imputed_data <- missForest::missForest(dat[, c(rf.predictors, "delta_g")])$ximp
+
 ## Create the list of models
 model_list_deltag_raw <-
   caretList(
     delta_g ~ ., 
-    data = na.omit(dat[,c(rf.predictors,"delta_g")]),
+    data = imputed_data,
     trControl = traindata,
     metric = "RMSE",
     tuneList = list(
@@ -1078,11 +1307,14 @@ model_list_deltag_raw <-
 ### Abundance change (delta N)
 
 ```{r, message=FALSE, results='hide'}
+# Impute missing data for pesticide change in Canada
+imputed_data <- missForest::missForest(dat[, c(rf.predictors, "delta_N")])$ximp
+
 ## Create the list of models
 model_list_deltaN_raw <-
   caretList(
-    delta_N ~ ., 
-    data = na.omit(dat[,c(rf.predictors,"delta_N")]),
+    delta_N ~ .,
+    data = imputed_data,
     trControl = traindata,
     metric = "RMSE",
     tuneList = list(
@@ -1129,6 +1361,8 @@ varImp(model_list_deltaN_raw$xgboost)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
     variable == "footprint93" ~ "Human footprint\n(1993)",
@@ -1157,6 +1391,8 @@ varImp(model_list_deltag_raw$rf)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide Change",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
     variable == "footprint93" ~ "Human footprint\n(1993)",
@@ -1185,6 +1421,8 @@ varImp(model_list_deltaabsg_raw$xgboost)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
     variable == "footprint93" ~ "Human footprint\n(1993)",
@@ -1223,6 +1461,8 @@ varImp(model_list_deltaN_raw$xgboost)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
     variable == "footprint93" ~ "Human footprint\n(1993)",
@@ -1252,11 +1492,11 @@ varimp <-
     mutate(response = "deltaabsg") %>% 
     rownames_to_column()
   ) %>% 
-  rbind(
-    varImp(model_list_deltag_raw$rf)$importance %>%  
-    mutate(response = "deltag") %>% 
-    rownames_to_column()
-  ) %>% 
+  # rbind(
+  #   varImp(model_list_deltag_raw$rf)$importance %>%  
+  #   mutate(response = "deltag") %>% 
+  #   rownames_to_column()
+  # ) %>% 
   rename(variable = "rowname",
          importance = "Overall") %>% 
   mutate(variable = case_when(
@@ -1265,6 +1505,8 @@ varimp <-
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
     variable == "footprint93" ~ "Human footprint\n(1993)",
@@ -1295,6 +1537,8 @@ importance_order_deltag_raw <- varImp(model_list_deltag_raw$rf)$importance %>%
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
     variable == "footprint93" ~ "Human footprint\n(1993)",
@@ -1312,6 +1556,8 @@ importance_order_deltaN_raw <- varImp(model_list_deltaN_raw$xgboost)$importance 
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
     variable == "footprint93" ~ "Human footprint\n(1993)",
@@ -1329,6 +1575,8 @@ importance_order_deltaabsg_raw <- varImp(model_list_deltaabsg_raw$xgboost)$impor
     variable == "trees" ~ "Tree cover\n(2020)",
     variable == "shrubs" ~ "Shrub cover\n(2020)",
     variable == "Nfertilizer" ~ "Nitrogen fertilizer use\n(1994-2001)",
+    # variable == "mean_pesticide" ~ "Mean Pesticide",
+    variable == "pesticide_change" ~ "Pesticide change\n(1992-2018)",
     # variable == "crops03" ~ "Cropland area\n(2003)",
     variable == "footprint93to09" ~ "Human foortprint change\n(1993-2009)",
     variable == "grass" ~ "Grassland cover\n(2020)",
@@ -1349,6 +1597,9 @@ covariate_labels <- c(
   "trees" = "Tree cover\n(2020)",
   "shrubs" = "Shrub cover\n(2020)",
   "Nfertilizer" = "Nitrogen fertilizer use\n(1994-2001)",
+  # "mean_pesticide" = "Mean Pesticide",
+  "pesticide_change" = "Pesticide change\n(1992-2018)",
+  # "crops03" = "Cropland area\n(2003)",
   "footprint93to09" = "Human foortprint change\n(1993-2009)",
   "grass" = "Grassland cover\n(2020)",
   "footprint93" = "Human footprint\n(1993)",
@@ -1377,7 +1628,7 @@ pdf("pdp_g_raw.pdf", width = 8.27, height = 5.83)
 
 ggplot(pp)+
   geom_line(aes(x, yhat, color = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
   theme(
@@ -1398,7 +1649,7 @@ dev.off()
 ```{r, echo=FALSE}
 ggplot(pp)+
   geom_line(aes(x, yhat, color = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Growth rate change (delta g)")+
   theme_bw()+
   theme(
@@ -1416,7 +1667,7 @@ ggplot(pp)+
 pp_g <-
   ggplot(pp)+
   geom_line(aes(x, yhat, color = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Growth rate change (delta g)")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_bw()+
@@ -1433,8 +1684,6 @@ pp_g <-
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
 
 ```
-
-
 
 #### Abundance change (delta N)
 
@@ -1458,7 +1707,7 @@ pdf("pdp_N_raw.pdf", width = 8.27, height = 5.83)
 
 ggplot(pp)+
   geom_line(aes(x, yhat, colour = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Abundance change (delta N)")+
   theme_bw()+
   theme(
@@ -1475,6 +1724,26 @@ ggplot(pp)+
 
 dev.off()
 ```
+
+```{r, echo=FALSE}
+pp_N <- ggplot(pp)+
+  geom_line(aes(x, yhat, colour = covariate), size = 1)+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
+  ylab("Abundance change (delta N)")+
+  theme_bw()+
+  theme(
+    axis.title = element_blank(),
+    strip.text = element_text(size = 7.3),
+    axis.text = element_text(size = 6),
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )+
+  scale_color_manual(values = covariate_colors, guide = "none")+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = .7)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = .7)
+```
+
 
 #### Absolute growth rate change (delta absg)
 
@@ -1498,7 +1767,7 @@ pdf("pdp_absg_raw.pdf", width = 8.27, height = 5.83)
 
 ggplot(pp)+
   geom_line(aes(x, yhat, colour = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Abundance change (delta N)")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_bw()+
@@ -1518,11 +1787,10 @@ dev.off()
 ```
 
 
-
 ```{r, echo=FALSE}
 ggplot(pp)+
   geom_line(aes(x, yhat, colour = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Abundance change (delta N)")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_bw()+
@@ -1541,7 +1809,7 @@ ggplot(pp)+
 pp_absg <-
   ggplot(pp)+
   geom_line(aes(x, yhat, colour = covariate), size = 1)+
-  facet_wrap(vars(covariate), scales = "free_x")+
+  facet_wrap(vars(covariate), scales = "free_x", drop = F)+
   ylab("Abundance change (delta N)")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_bw()+
