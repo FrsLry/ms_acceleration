@@ -384,7 +384,7 @@ plot(water, col=map.pal("viridis", 100),
      background = "grey")
 lines(states, col = "white")
 
-## For pesticide 1992
+## For mean pesticide (1992-2018)
 zr    <- range(min(mean_pesticide$mean_pesticide_high[is.finite(mean_pesticide$mean_pesticide_high)], na.rm = T),
                max(mean_pesticide$mean_pesticide_high[is.finite(mean_pesticide$mean_pesticide_high)], na.rm = T))
 cols  <- map.pal("viridis", 200)
@@ -396,14 +396,13 @@ plot(NA, xlim=c(e[1],e[2]), ylim=c(e[3],e[4]), type="n", axes=FALSE, xlab="", yl
      main="Mean log(pesticide/m^2) (1992-2018)")
 plot(mean_pesticide["mean_pesticide_high"],
      add=TRUE, reset=FALSE, border=NA,
-     breaks = brks,                    # <- explicit breaks
-     pal    = function(n) cols,        # <- same colors as legend
+     breaks = brks,                    
+     pal    = function(n) cols,        
      key.pos = NULL)
 plot(sf::st_geometry(states), add=TRUE, border="white", lwd=0.4)
 fields::image.plot(legend.only=TRUE, zlim = range(brks), col=cols, add=TRUE,
                    legend.mar=3, legend.shrink=0.9)
 par(op)
-
 
 ## For change
 # Robust limits for contrast (2–98%); extremes will use end colors
@@ -487,7 +486,7 @@ dat <- select(dat, -c("lat", "lon")) # remove spatial coordinates
 # Pairwise Spearman correlations
 
 ```{r}
-png("all_pairs.png", width= 23, height = 16, units = "in", res = 300)
+png("all_pairs.png", width= 23, height = 23, units = "in", res = 300)
 
 psych::pairs.panels(dat,
                     ellipses = FALSE,
@@ -535,7 +534,7 @@ rf.predictors <- c("grass",
 set.seed(333)
 traindata <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
 
-# Impute missing data for pesticide change in Canada
+# Impute missing data for pesticide change in Canada and Alaska
 imputed_data <- missForest::missForest(dat[, c(rf.predictors, "delta_absg_gam")])$ximp
 
 ## We use three tree-based algorithms in order to assess which one perform the best
@@ -576,7 +575,7 @@ model_list_deltaabsg <-
 ### Growth rate change (delta g)
 
 ```{r, message=FALSE, results='hide'}
-# Impute missing data for pesticide change in Canada
+# Impute missing data for pesticide change in Canada and Alaska
 imputed_data <- missForest::missForest(dat[, c(rf.predictors, "delta_g_gam")])$ximp
 
 ## Create the list of models
@@ -701,7 +700,8 @@ covariate_colors <- c(
 
 pdf("importance_deltaN.pdf", width = 5.83, height = 4.13)
 
-varImp(model_list_deltaN$xgboost)$importance %>%  
+varImp(model_list_deltaN$xgboost)$importance %>% 
+  mutate(Overall = (Overall*model_list_deltaN$xgboost$results$Rsquared/sum(Overall))*100) %>% 
   mutate(response = "deltaN") %>% 
   rownames_to_column() %>% 
   rename(variable = "rowname",
@@ -733,6 +733,7 @@ dev.off()
 pdf("importance_deltag.pdf", width = 5.83, height = 4.13)
 
 varImp(model_list_deltag$rf)$importance %>%  
+  mutate(Overall = (Overall*model_list_deltag$rf$results$Rsquared/sum(Overall))*100) %>%
   mutate(response = "deltag") %>% 
   rownames_to_column() %>% 
   rename(variable = "rowname",
@@ -764,6 +765,7 @@ dev.off()
 pdf("importance_deltaabsg.pdf", width = 5.83, height = 4.13)
 
 varImp(model_list_deltaabsg$xgboost)$importance %>%  
+  mutate(Overall = (Overall*model_list_deltaabsg$xgboost$results$Rsquared/sum(Overall))*100) %>%
   mutate(response = "deltaabsg") %>% 
   rownames_to_column() %>% 
   rename(variable = "rowname",
@@ -794,16 +796,19 @@ dev.off()
 
 pdf("importance.pdf", width = 8, height = 4.13)
 
-varImp(model_list_deltaN$xgboost)$importance %>%  
+varImp(model_list_deltaN$xgboost)$importance %>%
+  mutate(Overall = (Overall*model_list_deltaN$xgboost$results$Rsquared/sum(Overall))*100) %>%
   mutate(response = "deltaN") %>% 
   rownames_to_column() %>% 
   rbind(
-    varImp(model_list_deltaabsg$xgboost)$importance %>%  
+    varImp(model_list_deltaabsg$xgboost)$importance %>%
+    mutate(Overall = (Overall*model_list_deltaabsg$xgboost$results$Rsquared/sum(Overall))*100) %>%
     mutate(response = "deltaabsg") %>% 
     rownames_to_column()
   ) %>% 
   rbind(
-    varImp(model_list_deltag$rf)$importance %>%  
+    varImp(model_list_deltag$rf)$importance %>%
+    mutate(Overall = (Overall*model_list_deltag$rf$results$Rsquared/sum(Overall))*100) %>%
     mutate(response = "deltag") %>% 
     rownames_to_column()
   ) %>% 
@@ -841,19 +846,22 @@ dev.off()
 
 ```{r, echo=FALSE}
 varimp <-
-  varImp(model_list_deltaN$xgboost)$importance %>%  
+  varImp(model_list_deltaN$xgboost)$importance %>% 
+  mutate(Overall = (Overall*model_list_deltaN$xgboost$results$Rsquared/sum(Overall))*100) %>%
   mutate(response = "deltaN") %>% 
   rownames_to_column() %>% 
   rbind(
-    varImp(model_list_deltaabsg$xgboost)$importance %>%  
+    varImp(model_list_deltaabsg$xgboost)$importance %>%
+    mutate(Overall = (Overall*model_list_deltaabsg$xgboost$results$Rsquared/sum(Overall))*100) %>%
     mutate(response = "deltaabsg") %>% 
     rownames_to_column()
   ) %>% 
-  rbind(
-    varImp(model_list_deltag$rf)$importance %>%  
-    mutate(response = "deltag") %>% 
-    rownames_to_column()
-  ) %>% 
+  # rbind(
+  #   varImp(model_list_deltag$rf)$importance %>%  
+  #   mutate(Overall = (Overall*model_list_deltag$rf$results$Rsquared/sum(Overall))*100) %>%
+  #   mutate(response = "deltag") %>% 
+  #   rownames_to_column()
+  # ) %>% 
   rename(variable = "rowname",
          importance = "Overall") %>% 
   mutate(variable = case_when(
@@ -874,7 +882,7 @@ varimp <-
   mutate(variable = reorder(variable, importance),
          response = factor(response, levels = c("deltaN", "deltaabsg", "deltag"))) %>% 
   ggplot(aes(x = importance, y = variable, fill = variable)) +
-  facet_wrap(vars(response))+
+  facet_wrap(vars(response), scales = "free_x")+
   geom_col() +
   xlab("Relative importance")+
   scale_fill_manual(values = covariate_colors, guide = "none")+
@@ -891,6 +899,7 @@ library(pdp)
 
 ```{r}
 importance_order_deltag <- varImp(model_list_deltag$rf)$importance %>%
+  mutate(Overall = Overall*model_list_deltag$rf$results$Rsquared/sum(Overall)) %>%
   rownames_to_column("variable") %>%
   mutate(variable = case_when(
     variable == "temp" ~ "Mean Temperature\n(1970-2000)",
@@ -911,6 +920,7 @@ importance_order_deltag <- varImp(model_list_deltag$rf)$importance %>%
   pull(variable)
 
 importance_order_deltaN <- varImp(model_list_deltaN$xgboost)$importance %>%
+  mutate(Overall = Overall*model_list_deltaN$xgboost$results$Rsquared/sum(Overall)) %>%
   rownames_to_column("variable") %>%
   mutate(variable = case_when(
     variable == "temp" ~ "Mean Temperature\n(1970-2000)",
@@ -931,6 +941,7 @@ importance_order_deltaN <- varImp(model_list_deltaN$xgboost)$importance %>%
   pull(variable)
 
 importance_order_deltaabsg <- varImp(model_list_deltaabsg$xgboost)$importance %>%
+  mutate(Overall = Overall*model_list_deltaabsg$xgboost$results$Rsquared/sum(Overall)) %>%
   rownames_to_column("variable") %>%
   mutate(variable = case_when(
     variable == "temp" ~ "Mean Temperature\n(1970-2000)",
@@ -1212,7 +1223,7 @@ pp_absg <-
 
 ```{r, echo = F}
 pdf("fig2.pdf", width = 11.69, height = 8.27)
-final_plot <- varimp / (pp_N | pp_absg | pp_g)
+final_plot <- varimp / (pp_N | pp_absg)
 final_plot + patchwork::plot_layout(heights = c(0.4, 0.6))
 dev.off()
 ```
@@ -1350,7 +1361,8 @@ model_list_deltaN_raw <-
 # Using the same algorithms than for the smoothed values (i.e. XGBoost for delta N, delta abs g and RF for delta g)
 pdf("importance_deltaN_raw.pdf", width = 5.83, height = 4.13)
 
-varImp(model_list_deltaN_raw$xgboost)$importance %>%  
+varImp(model_list_deltaN_raw$xgboost)$importance %>% 
+  mutate(Overall = (Overall*model_list_deltaN_raw$xgboost$results$Rsquared/sum(Overall))*100) %>% 
   mutate(response = "deltaN") %>% 
   rownames_to_column() %>% 
   rename(variable = "rowname",
@@ -1380,7 +1392,8 @@ dev.off()
 
 pdf("importance_deltag_raw.pdf", width = 5.83, height = 4.13)
 
-varImp(model_list_deltag_raw$rf)$importance %>%  
+varImp(model_list_deltag_raw$rf)$importance %>% 
+  mutate(Overall = (Overall*model_list_deltag_raw$rf$results$Rsquared/sum(Overall))*100) %>% 
   mutate(response = "deltag") %>% 
   rownames_to_column() %>% 
   rename(variable = "rowname",
@@ -1410,7 +1423,8 @@ dev.off()
 
 pdf("importance_deltaabsg_raw.pdf", width = 5.83, height = 4.13)
 
-varImp(model_list_deltaabsg_raw$xgboost)$importance %>%  
+varImp(model_list_deltaabsg_raw$xgboost)$importance %>% 
+  mutate(Overall = (Overall*model_list_deltaabsg_raw$xgboost$results$Rsquared/sum(Overall))*100) %>% 
   mutate(response = "deltaabsg") %>% 
   rownames_to_column() %>% 
   rename(variable = "rowname",
@@ -1440,16 +1454,19 @@ dev.off()
 
 pdf("importance_raw.pdf", width = 8, height = 4.13)
 
-varImp(model_list_deltaN_raw$xgboost)$importance %>%  
+varImp(model_list_deltaN_raw$xgboost)$importance %>%
+  mutate(Overall = (Overall*model_list_deltaN_raw$xgboost$results$Rsquared/sum(Overall))*100) %>% 
   mutate(response = "deltaN") %>% 
   rownames_to_column() %>% 
   rbind(
-    varImp(model_list_deltaabsg_raw$xgboost)$importance %>%  
+    varImp(model_list_deltaabsg_raw$xgboost)$importance %>% 
+    mutate(Overall = (Overall*model_list_deltaabsg_raw$xgboost$results$Rsquared/sum(Overall))*100) %>% 
     mutate(response = "deltaabsg") %>% 
     rownames_to_column()
   ) %>% 
   rbind(
     varImp(model_list_deltag_raw$rf)$importance %>%  
+    mutate(Overall = (Overall*model_list_deltag_raw$rf$results$Rsquared/sum(Overall))*100) %>% 
     mutate(response = "deltag") %>% 
     rownames_to_column()
   ) %>% 
@@ -1484,11 +1501,13 @@ dev.off()
 
 ```{r, echo=FALSE}
 varimp <-
-  varImp(model_list_deltaN_raw$xgboost)$importance %>%  
+  varImp(model_list_deltaN_raw$xgboost)$importance %>% 
+  mutate(Overall = (Overall*model_list_deltaN_raw$xgboost$results$Rsquared/sum(Overall))*100) %>% 
   mutate(response = "deltaN") %>% 
   rownames_to_column() %>% 
   rbind(
-    varImp(model_list_deltaabsg_raw$xgboost)$importance %>%  
+    varImp(model_list_deltaabsg_raw$xgboost)$importance %>%
+    mutate(Overall = (Overall*model_list_deltaabsg_raw$xgboost$results$Rsquared/sum(Overall))*100) %>% 
     mutate(response = "deltaabsg") %>% 
     rownames_to_column()
   ) %>% 
@@ -1829,7 +1848,7 @@ pp_absg <-
 
 ```{r, echo = F}
 pdf("fig2_raw.pdf", width = 11.69, height = 8.27)
-final_plot <- varimp / (pp_N | pp_absg | pp_g)
+final_plot <- varimp / (pp_N | pp_absg)
 final_plot + patchwork::plot_layout(heights = c(0.4, 0.6))
 dev.off()
 ```
