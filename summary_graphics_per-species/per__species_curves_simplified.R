@@ -106,7 +106,7 @@ for(filename in filelist)
                    q50 = round(sm$"50%", 2),
                    q97.5 = round(sm$"97.5%",2),
                    Rhat = sm$Rhat)
-  converged <- max(sm$Rhat, na.rm=T) < 1.1 # has the model converged
+  converged <- max(sm$Rhat, na.rm=T) <= 1.1 # has the model converged
 
   # parameters of the graphical output
   max.col <- "#4daf4a" # marking time series with max mean abundance
