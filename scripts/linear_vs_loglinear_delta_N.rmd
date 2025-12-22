@@ -1,0 +1,297 @@
+---
+title: "Comparing delta N from normal linear model with delta N from log-linear Poisson
+  model"
+author: "Petr Keil"
+date: "2025-12-22"
+output: 
+  html_document: 
+    toc: yes
+    theme: cerulean
+    number_sections: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is a script created by Petr Keil to check if we would get the same 
+spatial pattern of `delta_N` from a **normal linear model** (as described in the methods):
+
+`lm(N ~ year)`
+
+or from a **generalized linear model with Poisson errors and log link**:
+
+`glm(N ~ year, family="poisson")`.
+
+This is all an ad-hoc check. To make this fast, we didn't do a full Bayesian 
+inference here. We simply took the median `N` values (abundance) from the Bayesian
+model and run `lm()` and `glm()` on them. 
+
+In addition, we also compared `delta_N` values obtained from `lm()` and `glm()`
+with `delta_N` from the mixed effect model. In the latter we expect the 
+effect of shrinkage, which is indeed what we found.
+
+# Load libraries 
+
+```{r, message = FALSE, warning = FALSE}
+rm(list=ls())
+
+library(sf)
+library(terra)
+library(mgcv) 
+library(geodata) 
+library(rnaturalearth)
+library(tidyverse)
+library(randomForest)
+library(psych)
+library(forcats)
+library(gridExtra)
+```
+
+```{r}
+# read list of summary files for all species
+filelist <- list.files(path = "../summary_models")
+
+# example species
+filelist[10]
+```
+
+# Stacking route x year matrices for species together
+
+Here we extract the median estimated abundance (N) time series at each BBS
+route for each species, checks if the species has converged, and then for each
+route the scripts adds all the species' abundances together. The result is 
+a site by year matrix with total abundances per site and time step.
+
+```{r}
+# empty conatiner for the site by year abundance matrix:
+Nmat.sum <- matrix(0, nrow=1033, ncol = 35)
+# initialize counter (to count total number of converged species)
+counter <- 0
+
+# main loop through all species
+for(filename in filelist)
+{
+  # read the summary file of the JAGS model
+  summ <- readRDS(paste('../summary_models/', filename, sep=''))
+  # extracts mean convergence diagnostics
+  mean.rhat <- mean(summ$Rhat[1:20])
+
+  # clean species name for nice output
+  species <- gsub(".rds", replacement = "", x = filename)
+  species <- gsub("summary_", replacement = "", x = species)
+
+  # summary table of the main  parameters
+  sm <- summ[c(1:20),c("mean", "sd", "2.5%", "50%", "97.5%", "Rhat")]
+  sm <- data.frame(parameter = rownames(sm),
+                   mean = round(sm$mean,2),
+                   SD = round(sm$sd,2),
+                   q2.5 = round(sm$"2.5%",2),
+                   q50 = round(sm$"50%", 2),
+                   q97.5 = round(sm$"97.5%",2),
+                   Rhat = sm$Rhat)
+  
+  # has the model converged?
+  converged <- max(sm$Rhat, na.rm=T) <= 1.1 
+
+  # extract N
+  N <- summ[grepl("N", row.names(summ)),]
+  
+  # median estimated abundance (N) at each site and year 
+  Nmat <- matrix(N$"50%", ncol = 35, nrow = 1033, byrow=FALSE)
+
+  # if the model converged for this species, add the abundances to the totals
+  # -- this will produce the Nmat.sum matrix which we will analyze below
+  if(converged) 
+  { 
+    Nmat.sum <- Nmat.sum + Nmat
+    counter <- counter + 1
+    cat(paste(counter, species, ", "))
+  }
+}
+```
+
+# Estimate trends (deltas)
+
+Here we subject the `Nmat.sum` matrix (site by year matrix with median estimated
+abundances summed up for all species) to several models. 
+
+Specifically, we estimate:
+
+- `delta_N` - linear temporal trend of N, using `lm()`
+- `delta_Npois` - log-linear temporal trend of N, using `glm()` with Poisson errors and log link
+- `delta_g` - linear temporal trend of g, using `lm()`
+- `delta_r` - linear temporal trend of r, using `lm()`
+
+``` {r}
+# empty container for results
+trends <- list()
+
+# For each site in the matrix:
+for(i in 1:nrow(Nmat.sum))
+{
+  time <- 1:35
+  diff.time <- 2:35 
+  
+  N <- Nmat.sum[i,] # time series of abundances N_t at a site i
+  g <- diff(N) # time series of g_t
+  r <- g/N[1:34] # time series of r_t
+  
+  # temporal trends
+  deltaN <- lm(N~time)$coef[2] 
+  deltaNpois <- coef(glm(round(N)~time, family="poisson"))[2]
+  deltag <- lm(g~diff.time)$coef[2]
+  deltar <- lm(r~diff.time)$coef[2]
+
+  # put the trends together
+  res <- c(deltaN = unname(deltaN), 
+           deltaNpois = unname(deltaNpois),
+           deltag = unname(deltag),
+           deltar = unname(deltar))
+           
+  trends[[i]] <- res  
+}
+# collapse the list to a data frame
+trends <- data.frame(do.call("rbind", trends))
+```
+
+# Comparison of the four metrics
+
+```{r, fig.width = 8, fig.height= 8}
+pairs(trends)
+```
+
+# Loading the spatial data with trends from the Bayesian mixed model
+
+These are the trends that we actually show and analyze in the paper.
+
+```{r}
+# Load the shapefile with BBS routes
+routes <- st_read("../data/routes_shp/routes_selected_lines.shp") %>% arrange(routes)
+
+## get the states polygon
+states <-
+  ne_states(returnclass = "sf") %>%
+  filter(adm0_a3 == "CAN" | adm0_a3 == "USA" | adm0_a3 == "MEX") %>%
+  filter(woe_name != "Hawaii") %>%
+  st_crop(st_bbox(c(xmin = -165,
+                    xmax = -60,
+                    ymax = 62,
+                    ymin = 16)))
+
+# Load the models' output
+for(file in list.files("../mixed_model/outputs/", full.names = T)){
+  assign(gsub("^../mixed_model/outputs/|\\.rds$","",file),
+         readRDS(file = file))
+}
+```
+
+# Fit the spatial GAM to all of the trends (deltas)
+
+Here we fit the GAM smoother to all the trend metrics
+
+```{r}
+# extract latitude and longitude of route centroids
+coords <- data.frame(st_centroid(routes) %>% st_coordinates() )
+names(coords) <- c("lon","lat")
+routes <- cbind(routes, coords)
+
+##  raw (not smoothed) values of rates from the mixed effect model, as described
+# in the methods
+routes$delta_N <- overall_N_output$mean$beta1
+routes$delta_g <- overall_absg_output$mean$beta1 # note that absg is in fact g
+routes$delta_r <- overall_g_output$mean$beta1 # note that g is in fact r (residual notation from early versions)
+
+##  raw (not smoothed) values of rates from simple linear models 
+routes$delta_N_PK <- trends$deltaN 
+routes$delta_Npois_PK <- trends$deltaNpois 
+routes$delta_g_PK <- trends$deltag
+routes$delta_r_PK <- trends$deltar
+
+# fit the gam models for the smoothened maps
+routes$delta_N_gam <- gam(delta_N ~ s(lon, lat, bs = "gp", k = 100, m = 2),
+                          data = routes)$fitted.values
+routes$delta_g_gam <- gam(delta_g ~ s(lon, lat, bs = "gp", k = 100, m = 2),
+                          data = routes)$fitted.values
+routes$delta_r_gam <- gam(delta_r ~ s(lon, lat, bs = "gp", k = 100, m = 2),
+                          data = routes)$fitted.values
+routes$delta_Npois_gam <- gam(delta_Npois_PK ~ s(lon, lat, bs = "gp", k = 100, m = 2),
+                          data = routes)$fitted.values
+routes$delta_N_PK_gam <- gam(delta_N_PK ~ s(lon, lat, bs = "gp", k = 100, m = 2),
+                              data = routes)$fitted.values
+```
+
+# Plot the trends in maps and against each other
+
+```{r, fig.width = 10, fig.height = 12}
+# 
+p.deltaNgam <- ggplot(data=states) + 
+               geom_sf() +
+               geom_point(data = routes, aes(x = lon,
+                                             y = lat,
+                                             colour = delta_N_PK_gam)) +
+               scale_colour_continuous(name = "Delta_N \n linear   \n (GAM)")
+
+p.deltaNgampois <- ggplot(data=states) + 
+                   geom_sf() +
+                   geom_point(data = routes, aes(x = lon,
+                                                 y = lat,
+                                                 colour = delta_Npois_gam)) +
+                   scale_colour_continuous(name = "Delta_N \n loglinear \n (GAM)")
+
+p.deltaN <- ggplot(data=states) + 
+            geom_sf() +
+            geom_point(data = routes, aes(x = lon,
+                                          y = lat,
+                                          colour = delta_N_PK)) +
+            scale_colour_continuous(name = "Delta_N \n linear \n (raw)")
+
+p.deltaNpois<- ggplot(data=states) + 
+               geom_sf() +
+               geom_point(data = routes, aes(x = lon,
+                                             y = lat,
+                                             colour = delta_Npois_PK)) +
+               scale_colour_continuous(name = "Delta_N \n loglinear \n (raw)")
+
+N.gam.biplot <- ggplot(data=routes, aes(x= delta_N_PK_gam, y = delta_Npois_gam)) +
+                geom_point() + 
+                xlab("Delta_N linear (GAM)") + ylab("Delta_N loglinear (GAM)")+
+                geom_vline(xintercept=0) + geom_hline(yintercept=0)
+
+N.biplot <- ggplot(data=routes, aes(x= delta_N_PK, y = delta_Npois_PK)) +
+            geom_point() + 
+            xlab("Delta_N linear (raw)") + ylab("Delta_N loglinear (raw)")+
+            geom_vline(xintercept=0) + geom_hline(yintercept=0)
+
+grid.arrange(p.deltaN,  p.deltaNgam, 
+             p.deltaNpois,p.deltaNgampois,
+             N.biplot,  N.gam.biplot, 
+             nrow=3, ncol=2)
+```
+
+# Additional checks of metrics 
+
+Here we compare the rates derived from the mixed effect model (used in the main text)
+with values obtained from simple lm().
+
+```{r, fig.width = 5}
+plot(routes$delta_r, routes$delta_r_PK,
+     xlab = "Delta_r (mixed effect model)", ylab="Delta_r (lm)")
+abline(a=0, b=1)
+
+plot(routes$delta_g, routes$delta_g_PK,
+     xlab = "Delta_g (mixed effect model)", ylab="Delta_g (lm)")
+abline(a=0, b=1)
+
+plot(routes$delta_N, routes$delta_N_PK,
+     xlab = "Delta_N (mixed effect model)", ylab="Delta_N (lm)")
+abline(a=0, b=1)
+```
+
+
+# Session info
+
+```{r}
+  sessionInfo()
+```
+
