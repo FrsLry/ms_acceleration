@@ -1,0 +1,158 @@
+---
+title: "Comparing various delta values"
+author: "Petr Keil"
+date: "2025-12-28"
+output: 
+  html_document: 
+    toc: yes
+    theme: cerulean
+    number_sections: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Load libraries 
+
+```{r, message = FALSE, warning = FALSE}
+rm(list=ls())
+
+library(sf)
+library(terra)
+library(mgcv) 
+library(geodata) 
+library(rnaturalearth)
+library(tidyverse)
+library(randomForest)
+library(psych)
+library(forcats)
+library(gridExtra)
+```
+
+# Loading the spatial data with trends
+
+These are the trends that we actually show and analyze in the paper.
+
+```{r}
+# Load the shapefile with BBS routes
+routes <- st_read("../data/routes_shp/routes_selected_lines.shp") %>% arrange(routes)
+
+## get the states polygon
+states <-
+  ne_states(returnclass = "sf") %>%
+  filter(adm0_a3 == "CAN" | adm0_a3 == "USA" | adm0_a3 == "MEX") %>%
+  filter(woe_name != "Hawaii") %>%
+  st_crop(st_bbox(c(xmin = -165,
+                    xmax = -60,
+                    ymax = 62,
+                    ymin = 16)))
+
+# Load the models' output
+for(file in list.files("../mixed_model/outputs/", full.names = T)){
+  assign(gsub("^../mixed_model/outputs/|\\.rds$","",file),
+         readRDS(file = file))
+}
+```
+
+# Fit the spatial GAM to all of the trends (deltas)
+
+Here we fit the GAM smoother to all the trend metrics
+
+```{r}
+# extract latitude and longitude of route centroids
+coords <- data.frame(st_centroid(routes) %>% st_coordinates() )
+names(coords) <- c("lon","lat")
+routes <- cbind(routes, coords)
+
+##  raw (not smoothed) values of rates from the mixed effect model, as described
+# in the methods
+routes$delta_N <- overall_N_output$mean$beta1
+routes$delta_g <- overall_absg_output$mean$beta1 # note that absg is in fact g
+routes$delta_r <- overall_g_output$mean$beta1 # note that g is in fact r (residual notation from early versions)
+
+# fit the gam models for the smoothened maps
+routes$delta_N_gam <- gam(delta_N ~ s(lon, lat, bs = "gp", k = 100, m = 2),
+                          data = routes)$fitted.values
+routes$delta_g_gam <- gam(delta_g ~ s(lon, lat, bs = "gp", k = 100, m = 2),
+                          data = routes)$fitted.values
+routes$delta_r_gam <- gam(delta_r ~ s(lon, lat, bs = "gp", k = 100, m = 2),
+                          data = routes)$fitted.values
+```
+
+# Plot the delta values against each other
+
+```{r, fig.width = 7.5, fig.height = 12}
+g.lim <- range(routes$delta_g)
+r.lim <- range(routes$delta_r)
+N.lim <- range(routes$delta_N)
+
+delta_g_vs_r <- ggplot(data=routes, aes(x= delta_g, y = delta_r)) +
+                geom_point(shape=1) + 
+                xlim(g.lim) + ylim(r.lim) +
+                geom_vline(xintercept=0) + geom_hline(yintercept=0) +
+                geom_vline(xintercept=mean(routes$delta_g), linetype=2, colour="red")+
+                geom_hline(yintercept=mean(routes$delta_r), linetype=2, colour="red") +
+                labs(title="E", subtitle="not smoothed")
+
+delta_g_vs_r_gam <- ggplot(data=routes, aes(x= delta_g_gam, y = delta_r_gam)) +
+                    geom_point(shape=1) + 
+                    xlim(g.lim) + ylim(r.lim) +
+                    geom_vline(xintercept=0) + geom_hline(yintercept=0) +
+                    geom_vline(xintercept=mean(routes$delta_g), linetype=2, colour="red")+
+                    geom_hline(yintercept=mean(routes$delta_r), linetype=2, colour="red") +
+                    labs(title="F", subtitle="smoothed")
+
+delta_N_vs_r <- ggplot(data=routes, aes(x= delta_N, y = delta_r)) +
+                geom_point(shape=1) + 
+                xlim(N.lim) + ylim(r.lim) +
+                geom_vline(xintercept=0) + geom_hline(yintercept=0) +
+                geom_vline(xintercept=mean(routes$delta_N), linetype=2, colour="red")+
+                geom_hline(yintercept=mean(routes$delta_r), linetype=2, colour="red") +
+                labs(title="C", subtitle="not smoothed")
+
+delta_N_vs_r_gam <- ggplot(data=routes, aes(x= delta_N_gam, y = delta_r_gam)) +
+                geom_point(shape=1) + 
+                xlim(N.lim) + ylim(r.lim) +
+                geom_vline(xintercept=0) + geom_hline(yintercept=0) +
+                geom_vline(xintercept=mean(routes$delta_N_gam), linetype=2, colour="red")+
+                geom_hline(yintercept=mean(routes$delta_r_gam), linetype=2, colour="red") +
+                labs(title="D", subtitle="smoothed")
+
+delta_N_vs_g <- ggplot(data=routes, aes(x= delta_N, y = delta_g)) +
+                geom_point(shape=1) + 
+                xlim(N.lim) + ylim(g.lim) +
+                geom_vline(xintercept=0) + geom_hline(yintercept=0) +
+                geom_vline(xintercept=mean(routes$delta_N), linetype=2, colour="red")+
+                geom_hline(yintercept=mean(routes$delta_g), linetype=2, colour="red") +
+                labs(title="A", subtitle="not smoothed")
+
+delta_N_vs_g_gam <- ggplot(data=routes, aes(x= delta_N_gam, y = delta_g_gam)) +
+                geom_point(shape=1) + 
+                xlim(N.lim) + ylim(g.lim) +
+                geom_vline(xintercept=0) + geom_hline(yintercept=0) +
+                geom_vline(xintercept=mean(routes$delta_N_gam), linetype=2, colour="red")+
+                geom_hline(yintercept=mean(routes$delta_g_gam), linetype=2, colour="red") +
+                labs(title="B", subtitle="smoothed")
+
+
+combined <- grid.arrange(delta_N_vs_g, delta_N_vs_g_gam,
+                         delta_N_vs_r, delta_N_vs_r_gam,
+                         delta_g_vs_r, delta_g_vs_r_gam,
+                         ncol=2, nrow=3)
+print(combined)
+
+pdf(file ="delta_r_vs_g_vs_N.pdf", width=5, height=10)
+  combined
+dev.off()
+
+```
+
+
+# Session info
+
+```{r}
+  sessionInfo()
+```
+
