@@ -3,6 +3,7 @@
 # Please note that all covariates were standardized and that some covariates are not used in the models due to convergence issues (namely land cover and elevation).
 # Users can select the species they want by modifying the `species` argument.
 rm(list=ls())
+
 library(jagsUI)
 library(MCMCvis)
 jagsData<-readRDS('data/jags_data_par.rds')

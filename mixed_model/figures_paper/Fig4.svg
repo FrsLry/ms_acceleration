@@ -8,8 +8,8 @@
    version="1.1"
    id="svg1"
    inkscape:version="1.4 (86a8ad7, 2024-10-11)"
-   sodipodi:docname="Fig4_new.svg"
-   inkscape:export-filename="Fig4_new.jpg"
+   sodipodi:docname="Fig4.svg"
+   inkscape:export-filename="Fig4.jpg"
    inkscape:export-xdpi="300"
    inkscape:export-ydpi="300"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
@@ -26,15 +26,15 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="0.612016"
-     inkscape:cx="142.15315"
-     inkscape:cy="577.59928"
+     inkscape:zoom="1.7310427"
+     inkscape:cx="272.37919"
+     inkscape:cy="1032.037"
      inkscape:window-width="1920"
-     inkscape:window-height="1009"
-     inkscape:window-x="1912"
-     inkscape:window-y="-8"
+     inkscape:window-height="1111"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g2366" />
+     inkscape:current-layer="g338" />
   <defs
      id="defs1">
     <clipPath
@@ -33488,26 +33488,6 @@
          stroke-width="0.788434"
          stroke-linecap="butt"
          stroke-linejoin="round"
-         stroke="#7f7f7f"
-         stroke-opacity="0.298039"
-         stroke-miterlimit="10"
-         d="m 261.50391,54.410156 h 2.65234"
-         id="path126-6" />
-      <path
-         fill="none"
-         stroke-width="0.788434"
-         stroke-linecap="butt"
-         stroke-linejoin="round"
-         stroke="#7f7f7f"
-         stroke-opacity="0.298039"
-         stroke-miterlimit="10"
-         d="m 261.50391,196.72656 h 2.65234"
-         id="path128-7" />
-      <path
-         fill="none"
-         stroke-width="0.788434"
-         stroke-linecap="butt"
-         stroke-linejoin="round"
          stroke="#e31a1c"
          stroke-opacity="0.298039"
          stroke-miterlimit="10"
@@ -33803,26 +33783,6 @@
          stroke-miterlimit="10"
          d="m 135.51562,161.42187 v -1.74609"
          id="path158-0" />
-      <path
-         fill="none"
-         stroke-width="0.788434"
-         stroke-linecap="butt"
-         stroke-linejoin="round"
-         stroke="#7f7f7f"
-         stroke-opacity="0.298039"
-         stroke-miterlimit="10"
-         d="m 355.67187,130.08984 v -1.74609"
-         id="path159-0" />
-      <path
-         fill="none"
-         stroke-width="0.788434"
-         stroke-linecap="butt"
-         stroke-linejoin="round"
-         stroke="#7f7f7f"
-         stroke-opacity="0.298039"
-         stroke-miterlimit="10"
-         d="m 134.13281,130.08984 v -1.74609"
-         id="path161-25" />
       <path
          fill-rule="nonzero"
          fill="#e31a1c"
